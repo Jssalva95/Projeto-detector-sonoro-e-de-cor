@@ -1,5 +1,11 @@
 # Machine Tracker
 
+> **Fase 0 — bootstrap em validação.** As instruções executáveis atuais estão em
+> [docs/deployment.md](docs/deployment.md), e os testes em
+> [docs/testing.md](docs/testing.md). As demais seções abaixo descrevem a visão
+> planejada do projeto, não funcionalidades já implementadas. O nome usado no
+> bootstrap é Machine Monitor, conforme `PROJECT_MASTER_PROMPT.md`.
+
 > Sistema de monitoramento inteligente para máquinas de teste, integrando **Arduino Mega 2560**, sensores IoT, backend web, banco de dados, dashboard em tempo real e alertas automáticos.
 
 ![Status](https://img.shields.io/badge/status-em%20desenvolvimento-yellow)
@@ -381,7 +387,9 @@ O agente não deve implementar múltiplas fases do projeto em uma única tarefa.
 
 ## Execução local
 
-> Os comandos abaixo deverão ser atualizados conforme o bootstrap do projeto for concluído.
+> Esta seção histórica descreve o fluxo planejado. Para o bootstrap atual, siga
+> [as instruções da Fase 0](docs/deployment.md), incluindo todas as variáveis
+> obrigatórias. Não é necessário Arduino ou PlatformIO para esta fase.
 
 ### Pré-requisitos
 

@@ -1,0 +1,46 @@
+x-health: &health
+  interval: ${HEALTHCHECK_INTERVAL:?Defina HEALTHCHECK_INTERVAL}
+  timeout: ${HEALTHCHECK_TIMEOUT:?Defina HEALTHCHECK_TIMEOUT}
+  retries: ${HEALTHCHECK_RETRIES:?Defina HEALTHCHECK_RETRIES}
+  start_period: ${HEALTHCHECK_START_PERIOD:?Defina HEALTHCHECK_START_PERIOD}
+
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?Defina POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER:?Defina POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      <<: *health
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+  backend:
+    build: ./backend
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?Defina DATABASE_URL}
+      BACKEND_PORT: ${BACKEND_PORT:?Defina BACKEND_PORT}
+    ports:
+      - "${BIND_ADDRESS:?Defina BIND_ADDRESS}:${BACKEND_PORT}:${BACKEND_PORT}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      <<: *health
+      test: ["CMD", "python", "-c", "import os, urllib.request; urllib.request.urlopen('http://localhost:' + os.environ['BACKEND_PORT'] + '/ready')"]
+  frontend:
+    build: ./frontend
+    environment:
+      FRONTEND_PORT: ${FRONTEND_PORT:?Defina FRONTEND_PORT}
+    ports:
+      - "${BIND_ADDRESS}:${FRONTEND_PORT}:${FRONTEND_PORT}"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      <<: *health
+      test: ["CMD", "node", "-e", "fetch('http://localhost:' + process.env.FRONTEND_PORT).then(r => {if (!r.ok) process.exit(1)}).catch(() => process.exit(1))"]
+
+volumes:
+  postgres_data:
