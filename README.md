@@ -1,5 +1,9 @@
 # Machine Tracker
 
+> **Fase 1 — models, schemas e migrations aprovados implementados e validados.**
+> Consulte [docs/database.md](docs/database.md) e o
+> [contrato de banco aprovado](docs/database-proposal.md). Suíte: 36 testes passaram.
+
 > **Fase 0 — bootstrap em validação.** As instruções executáveis atuais estão em
 > [docs/deployment.md](docs/deployment.md), e os testes em
 > [docs/testing.md](docs/testing.md). As demais seções abaixo descrevem a visão

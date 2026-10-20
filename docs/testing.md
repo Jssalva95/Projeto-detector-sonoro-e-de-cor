@@ -75,3 +75,26 @@ compilação Python e testes com banco simulado não bastam para concluir a fase
 
 A Fase 0 permanece com aceite integrado pendente. Configure `.env` e execute os
 comandos de integração acima em um ambiente com Docker operacional.
+
+## Fase 1 — infraestrutura de persistência
+
+A seção de resultado inicial acima é histórica. O deployment integrado da Fase 0
+foi validado posteriormente. Para a base da Fase 1, consulte `database.md` e
+aplique `alembic upgrade head` antes de executar a suíte no backend atualizado.
+
+```powershell
+docker compose exec -T backend python -m alembic current
+docker compose exec -T backend python -m alembic check
+docker compose exec -T backend python -m pytest -q
+docker compose exec -T backend python -m compileall -q app tests alembic
+docker compose exec -T backend python -m pip check
+```
+
+`test_phase1.py` cobre credenciais codificadas na URI usando somente fixtures,
+configuração inválida sem exposição de segredos, contratos HTTP/OpenAPI,
+commit/releitura ORM, rollback, violação de PK e baseline aplicada. A tabela de
+teste é temporária e desaparece ao fechar a conexão. `test_domain.py` valida os
+modelos aprovados em schema isolado, removido por rollback: persistência e schemas
+das sete tabelas, amplitude bruta, UTC, CHECKs, unicidade, FKs RESTRICT, histórico
+após reassociação e múltiplas tentativas em alerts. Também valida upgrade/downgrade
+nesse schema isolado. Nenhum envio, ingestão ou autenticação é executado.
