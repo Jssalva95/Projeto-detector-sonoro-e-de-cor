@@ -1517,7 +1517,7 @@ Executar por fases.
 
 ---
 
-# FASE 0 — Bootstrap
+# FASE 0 — Bootstrap - OK
 
 Entregáveis:
 
