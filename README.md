@@ -1,5 +1,9 @@
 # Machine Tracker
 
+> **Fase 2 — autenticação implementada e validada.** Login JSON, access/refresh,
+> RBAC e seed manual: [docs/authentication.md](docs/authentication.md).
+> Suíte atual: 82 testes passaram. Fase 3 não iniciada.
+
 > **Fase 1 — models, schemas e migrations aprovados implementados e validados.**
 > Consulte [docs/database.md](docs/database.md) e o
 > [contrato de banco aprovado](docs/database-proposal.md). Suíte: 36 testes passaram.

@@ -98,3 +98,24 @@ modelos aprovados em schema isolado, removido por rollback: persistência e sche
 das sete tabelas, amplitude bruta, UTC, CHECKs, unicidade, FKs RESTRICT, histórico
 após reassociação e múltiplas tentativas em alerts. Também valida upgrade/downgrade
 nesse schema isolado. Nenhum envio, ingestão ou autenticação é executado.
+
+## Fase 2 — autenticação
+
+`test_auth.py` adiciona 46 casos aos 36 testes anteriores. Configurações JWT são
+fixtures, e os usuários de teste ficam no schema isolado, removido por rollback.
+O seed real é manual e está documentado em [authentication.md](authentication.md).
+
+Validação realizada nesta implementação:
+
+- `docker compose build backend`: passou.
+- `docker compose run --rm --no-deps backend python -m pytest -q`: 82 passaram,
+  nenhum ignorado. Persiste o aviso Starlette/AnyIO já existente.
+- Login, `/me` e refresh repetido: HTTP 200 em requisições reais ao backend.
+- Access enviado ao refresh e refresh enviado ao `/me`: HTTP 401.
+- Usuários desativados/excluídos, roles alterados e tokens expirados/inválidos:
+  cobertos por testes PostgreSQL sem alterar o administrador real.
+- Migrations continuam em `0002_domain_models`; `alembic check` sem divergências.
+- Nenhuma rota de teste RBAC é exposta na aplicação de produção.
+
+Não imprimir as respostas de login/refresh durante testes manuais: elas contêm os
+tokens previstos no contrato. A API não registra esses valores nos logs.

@@ -71,7 +71,9 @@ def test_docs_and_health_contract() -> None:
     with TestClient(app) as client:
         assert client.get("/docs").status_code == 200
         schema = client.get("/openapi.json").json()
-        assert set(schema["paths"]) == {"/health", "/ready"}
+        assert set(schema["paths"]) == {
+            "/health", "/ready", "/api/v1/auth/login", "/api/v1/auth/refresh", "/api/v1/auth/me",
+        }
         assert schema["components"]["schemas"]["HealthResponse"]["properties"]["status"]["const"] == "ok"
 
 

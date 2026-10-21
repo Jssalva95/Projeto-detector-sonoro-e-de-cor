@@ -1,5 +1,10 @@
 # Execução da Fase 0
 
+> Esta página registra o bootstrap. No checkout com a Fase 2, as quatro variáveis
+> JWT também são obrigatórias para Compose. Configure-as conforme
+> [authentication.md](authentication.md), que contém o comando de seed manual.
+> As credenciais ADMIN são usadas somente no comando de seed, não no serviço.
+
 ## Escopo e pré-requisitos
 
 Bootstrap local: FastAPI, PostgreSQL e React/TypeScript/Vite. Docker com Compose
