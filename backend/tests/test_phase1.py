@@ -73,6 +73,8 @@ def test_docs_and_health_contract() -> None:
         schema = client.get("/openapi.json").json()
         assert set(schema["paths"]) == {
             "/health", "/ready", "/api/v1/auth/login", "/api/v1/auth/refresh", "/api/v1/auth/me",
+            "/api/v1/machines", "/api/v1/machines/{id}", "/api/v1/devices",
+            "/api/v1/devices/{id}", "/api/v1/devices/heartbeat",
         }
         assert schema["components"]["schemas"]["HealthResponse"]["properties"]["status"]["const"] == "ok"
 

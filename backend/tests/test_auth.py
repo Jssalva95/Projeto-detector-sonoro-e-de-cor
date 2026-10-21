@@ -239,6 +239,8 @@ def test_production_openapi_only_approved_endpoints():
     schema = app.openapi()
     assert set(schema["paths"]) == {
         "/health", "/ready", "/api/v1/auth/login", "/api/v1/auth/refresh", "/api/v1/auth/me",
+        "/api/v1/machines", "/api/v1/machines/{id}", "/api/v1/devices",
+        "/api/v1/devices/{id}", "/api/v1/devices/heartbeat",
     }
     assert schema["paths"]["/api/v1/auth/me"]["get"]["security"] == [{"HTTPBearer": []}]
     assert all("password_hash" not in model.get("properties", {})

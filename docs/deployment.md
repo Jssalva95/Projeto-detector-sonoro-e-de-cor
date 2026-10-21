@@ -4,6 +4,8 @@
 > JWT também são obrigatórias para Compose. Configure-as conforme
 > [authentication.md](authentication.md), que contém o comando de seed manual.
 > As credenciais ADMIN são usadas somente no comando de seed, não no serviço.
+> Na Fase 3, DEVICE_API_KEY também é obrigatória no Compose. Consulte
+> [equipment.md](equipment.md); o heartbeat usa X-API-Key.
 
 ## Escopo e pré-requisitos
 

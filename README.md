@@ -1,8 +1,11 @@
 # Machine Tracker
 
+> **Fase 3 — máquinas, dispositivos e heartbeat.** Contratos e execução em
+> [docs/equipment.md](docs/equipment.md). Suíte atual: 115 testes passaram.
+
 > **Fase 2 — autenticação implementada e validada.** Login JSON, access/refresh,
 > RBAC e seed manual: [docs/authentication.md](docs/authentication.md).
-> Suíte atual: 82 testes passaram. Fase 3 não iniciada.
+> Validação ao concluir a Fase 2: 82 testes passaram.
 
 > **Fase 1 — models, schemas e migrations aprovados implementados e validados.**
 > Consulte [docs/database.md](docs/database.md) e o

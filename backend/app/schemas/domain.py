@@ -60,12 +60,11 @@ class DeviceCreate(DataSchema):
     device_uid: str
     device_name: str
     firmware_version: str | None = None
-    last_seen_at: UtcDateTime | None = None
     is_active: bool = True
 
 
 class DeviceRead(DeviceCreate, Created, Updated):
-    pass
+    last_seen_at: UtcDateTime | None = None
 
 
 class SensorReadingCreate(DataSchema):

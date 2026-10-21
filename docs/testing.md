@@ -119,3 +119,18 @@ Validação realizada nesta implementação:
 
 Não imprimir as respostas de login/refresh durante testes manuais: elas contêm os
 tokens previstos no contrato. A API não registra esses valores nos logs.
+
+## Fase 3 — máquinas, dispositivos e heartbeat
+
+`test_equipment.py` acrescenta 33 casos aos 82 existentes. Resultado da suíte:
+115 testes passaram, nenhum ignorado. Os testes usam os routers reais com JWT,
+RBAC e API key, além do PostgreSQL isolado já utilizado nas fases anteriores.
+
+Cobrem criação, listagem, busca, PATCH e DELETE de ambas as entidades; restrições
+de referências e duplicidade; associação inexistente; reassociação preservando
+histórico; campos internos bloqueados; roles e usuários inativos; heartbeat em
+UTC, atualização/preservação de firmware, credenciais incorretas, dispositivo
+inativo, máquina incompatível e payload inválido. OpenAPI verifica rotas e esquemas
+de segurança. Nenhuma fixture é gravada nas tabelas públicas.
+
+Comandos e contrato: [equipment.md](equipment.md).

@@ -1,10 +1,12 @@
 """Request-scoped sessions and reusable access-token/RBAC dependencies."""
 
 from collections.abc import Callable, Iterator
+import os
+from secrets import compare_digest
 from typing import Annotated
 
 from fastapi import Depends, HTTPException
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi.security import APIKeyHeader, HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -15,6 +17,15 @@ from app.security import AuthConfigurationError, AuthSettings, InvalidCredential
 from app.services.auth import authenticated_user
 
 bearer = HTTPBearer(auto_error=False)
+device_key = APIKeyHeader(name="X-API-Key", auto_error=False)
+
+
+def require_device_key(key: Annotated[str | None, Depends(device_key)]) -> None:
+    expected = os.environ.get("DEVICE_API_KEY", "")
+    if not expected.strip():
+        raise HTTPException(503, "Device authentication configuration unavailable")
+    if key is None or not compare_digest(key.encode(), expected.encode()):
+        raise HTTPException(401, "Invalid device credentials")
 
 
 def get_session() -> Iterator[Session]:

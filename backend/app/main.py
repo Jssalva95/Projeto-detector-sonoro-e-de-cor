@@ -7,10 +7,21 @@ from fastapi.responses import JSONResponse
 
 from app.api.health import router
 from app.api.auth import router as auth_router
+from app.api.machines import router as machines_router
+from app.api.devices import router as devices_router
+from app.services.equipment import EquipmentError, NotFound, InactiveDevice
 
 app = FastAPI(title="Machine Monitor")
 app.include_router(router)
 app.include_router(auth_router)
+app.include_router(machines_router)
+app.include_router(devices_router)
+
+
+@app.exception_handler(EquipmentError)
+async def equipment_error(request: Request, error: EquipmentError) -> JSONResponse:
+    status_code = 404 if isinstance(error, NotFound) else 403 if isinstance(error, InactiveDevice) else 409
+    return JSONResponse(status_code=status_code, content={"detail": str(error)})
 
 
 @app.exception_handler(RequestValidationError)
