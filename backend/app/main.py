@@ -9,6 +9,7 @@ from app.api.health import router
 from app.api.auth import router as auth_router
 from app.api.machines import router as machines_router
 from app.api.devices import router as devices_router
+from app.api.readings import router as readings_router
 from app.services.equipment import EquipmentError, NotFound, InactiveDevice
 
 app = FastAPI(title="Machine Monitor")
@@ -16,6 +17,7 @@ app.include_router(router)
 app.include_router(auth_router)
 app.include_router(machines_router)
 app.include_router(devices_router)
+app.include_router(readings_router)
 
 
 @app.exception_handler(EquipmentError)

@@ -1,7 +1,11 @@
 # Machine Tracker
 
+> **Fase 4 — telemetria implementada e validada.** Ingestão e consulta de leituras,
+> filtros e paginação: [docs/readings.md](docs/readings.md).
+> Suíte atual: 156 testes passaram; nenhum ignorado.
+
 > **Fase 3 — máquinas, dispositivos e heartbeat.** Contratos e execução em
-> [docs/equipment.md](docs/equipment.md). Suíte atual: 115 testes passaram.
+> [docs/equipment.md](docs/equipment.md). Validação da fase: 115 testes passaram.
 
 > **Fase 2 — autenticação implementada e validada.** Login JSON, access/refresh,
 > RBAC e seed manual: [docs/authentication.md](docs/authentication.md).

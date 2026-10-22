@@ -134,3 +134,60 @@ inativo, máquina incompatível e payload inválido. OpenAPI verifica rotas e es
 de segurança. Nenhuma fixture é gravada nas tabelas públicas.
 
 Comandos e contrato: [equipment.md](equipment.md).
+
+## Fase 4 — telemetria
+
+Antes da implementação, a Fase 3 foi revalidada: 115 testes passaram, nenhum
+ignorado; serviços healthy; Alembic 0002 sem divergência. Hashes dos arquivos
+Python de app, tests e alembic coincidiram entre checkout e container.
+
+`test_readings.py` acrescenta 41 casos. Resultado completo: **156 passaram,
+nenhum ignorado**, com o mesmo aviso de depreciação Starlette/AnyIO.
+
+Cobertura: persistência/releitura, UUID obrigatório e duplicado, savepoint após
+conflito, UTC, amplitude bruta, sound_trigger nullable, validações de payload,
+máquina/dispositivo ausente, dispositivo inativo, associação incompatível e
+preservação histórica após reassociação. Filtros individuais e combinados,
+limites inclusivos, false booleano, lista vazia, paginação padrão/máxima e
+desempate por ID. JWT access/refresh, roles atuais, usuário inativo, API key,
+ausência de efeitos em status/heartbeat/eventos/alertas e contratos OpenAPI.
+Os testes são transacionais; não são ensaio de carga ou concorrência em produção.
+
+Comandos executados com sucesso:
+
+```powershell
+docker compose config --quiet
+docker compose build backend
+docker compose run --rm --no-deps backend python -m pytest -q
+docker compose up -d --wait backend
+docker compose exec -T backend python -m alembic current
+docker compose exec -T backend python -m alembic check
+docker compose exec -T backend python -m pip check
+docker compose exec -T backend python -m compileall -q app tests alembic
+docker compose exec -T frontend npm run test
+docker compose exec -T frontend npm run typecheck
+docker compose exec -T frontend npm run build
+docker compose ps
+git diff --check
+git diff
+git status --short
+```
+
+Backend e PostgreSQL healthy; frontend healthy, teste único, typecheck e build
+passaram. Sem novas migrations/dependências. Alembic permanece 0002_domain_models
+(head), sem operações novas detectadas. Não há lint configurado.
+
+Smoke HTTP via script Python em `docker compose run --rm -T --no-deps
+--env-from-file .env backend python -`: /health, /ready, /docs e /openapi.json
+retornaram 200. Login, /me e listagens autenticadas de máquinas, dispositivos e
+leituras retornaram 200. Sem autenticação/refresh em GET e POST sem chave: 401;
+limit inválido e POST vazio com chave: 422; leitura inexistente: 404. Nenhum
+token, senha ou resposta de login foi impresso. A persistência válida do POST foi
+validada pelo TestClient com PostgreSQL isolado, sem inserir dados na produção.
+
+Após a suíte, não restaram schemas test_domain; tabelas públicas machines,
+devices, sensor_readings, events e alerts continuaram vazias. Índices de
+machine_id, device_id, timestamp e UUID foram confirmados no banco real.
+
+Contrato e limites: [readings.md](readings.md). Nenhuma validação física pertence
+a esta fase; não houve integração com sensores reais.
