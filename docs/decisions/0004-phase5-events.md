@@ -31,3 +31,13 @@ histórico completo de associações. A autorização de dispositivo continua ba
 na chave compartilhada existente.
 
 Contrato operacional: [events.md](../events.md).
+
+## Correções aprovadas após auditoria
+
+- Conversor UTC compartilhado transforma OverflowError em erro de validação;
+  datas não representáveis após conversão retornam 422, sem limites arbitrários.
+- EventRequest.message rejeita NUL antes da persistência, sem modificar textos.
+- Respostas de validação de eventos incluem apenas loc/type/msg, omitindo input
+  e ctx para impedir falhas de serialização em qualquer categoria de erro.
+- Regressões de leituras/filtros verificam o conversor compartilhado. Nenhuma
+  migration, dependência ou funcionalidade de outra fase foi adicionada.

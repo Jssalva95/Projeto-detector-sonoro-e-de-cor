@@ -28,9 +28,13 @@ DEVICE_ONLINE. Severidade é informada pelo produtor: INFO, WARNING ou CRITICAL.
 Não há inferência automática nem tabela de correspondência tipo/severidade.
 
 Datas exigem fuso, são convertidas para UTC; ended_at não pode preceder started_at.
+Datas cuja conversão ultrapasse o intervalo representável retornam 422, inclusive
+nos filtros. Isso não impõe limite de idade ou de data futura.
 Amplitude aceita números finitos brutos, inclusive negativos e acima de 1;
 NaN/infinitos/overflow retornam 422. Duração é BIGINT não negativo. Cores opcionais
 são BLUE, RED ou UNKNOWN. Campos extras são rejeitados.
+Message não aceita o caractere NUL (U+0000), incompatível com TEXT no PostgreSQL;
+retorna 422 antes da persistência. Acentos, emojis e quebras de linha são preservados.
 
 id, created_at e todos os campos acknowledged* pertencem ao servidor. O schema
 EventCreate interno da Fase 1 permanece disponível para persistência, mas não é
@@ -80,6 +84,11 @@ Inserções concorrentes podem deslocar páginas entre consultas por offset.
 403 role insuficiente ou dispositivo inativo; 404 registro não encontrado;
 409 UUID divergente, associação incompatível ou conflito de referência;
 422 entrada inválida; 503 configuração/banco indisponível.
+
+Erros de validação das rotas de eventos retornam detail como lista de diagnósticos
+com loc, type e msg. Input e ctx são omitidos para evitar ecoar valores não
+serializáveis (por exemplo, infinito originado de 1e309), independentemente da
+categoria do erro. O tratamento de autenticação permanece separado.
 
 Não há alterações automáticas em Machine.status, heartbeat, firmware ou atividade
 de dispositivo. Não são gerados alertas, leituras, WebSockets, eventos derivados

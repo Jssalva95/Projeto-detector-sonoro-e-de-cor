@@ -280,3 +280,32 @@ Após execução: zero schemas test_domain/test_events remanescentes; tabelas
 públicas machines, devices, sensor_readings, events e alerts vazias. Índices de
 events confirmados no banco real. Não houve alteração do volume, credenciais,
 schema de produção ou integração física. Fase 6 não implementada.
+
+### Correções de validação após auditoria da Fase 5
+
+Três pendências corrigidas: overflow ao converter datas para UTC, NUL em message
+e serialização de erros contendo infinito fora do campo sound_amplitude.
+test_validation_boundaries.py acrescenta 23 casos: datas extremas em eventos,
+leituras e filtros; limites UTC ainda representáveis; mensagem NUL; preservação
+de Unicode/quebras de linha; erros de enum, campo extra, amplitude e texto com
+overflow numérico. Verifica ausência de persistência e requisição válida após erro.
+
+Validação executada nesta correção:
+
+- `docker compose build backend`: passou.
+- `docker compose run --rm --no-deps backend python -m pytest -q`: **250 passaram**,
+  nenhum ignorado; permanece o aviso preexistente Starlette/AnyIO.
+- `docker compose config --quiet` e `docker compose up -d --wait backend`: passaram.
+- `docker compose exec -T backend python -m alembic current`: 0002_domain_models (head).
+- `docker compose exec -T backend python -m alembic check`: sem divergências.
+- `docker compose exec -T backend python -m pip check`: sem incompatibilidades.
+- `docker compose exec -T backend python -m compileall -q app tests alembic`: passou.
+- `docker compose ps`: todos os serviços healthy.
+- Smoke HTTP via script Python no Compose: /health, /ready, /docs e /openapi.json
+  200; datas extremas, NUL e overflow em enum/campo extra 422; filtros de datas
+  extremos de eventos/leituras 422; consultas válidas posteriores 200.
+- `git diff`, `git diff --check` e `git status --short`: revisados.
+
+Sem schemas de teste remanescentes; events e sensor_readings públicos vazios.
+Nenhuma migration, dependência ou alteração de credenciais. Frontend não alterado.
+As três pendências auditadas foram resolvidas; a Fase 6 não foi iniciada.

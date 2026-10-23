@@ -1,6 +1,6 @@
 """Data contracts only; no HTTP endpoints or domain workflows."""
 
-from datetime import timezone
+from datetime import datetime, timezone
 from typing import Annotated, Self
 from uuid import UUID
 
@@ -8,7 +8,14 @@ from pydantic import AfterValidator, AwareDatetime, BaseModel, ConfigDict, Field
 
 from app.models.enums import AlertStatus, Channel, Color, EventType, MachineStatus, Role, Severity
 
-UtcDateTime = Annotated[AwareDatetime, AfterValidator(lambda value: value.astimezone(timezone.utc))]
+def to_utc(value: datetime) -> datetime:
+    try:
+        return value.astimezone(timezone.utc)
+    except OverflowError:
+        raise ValueError("Timestamp cannot be represented in UTC") from None
+
+
+UtcDateTime = Annotated[AwareDatetime, AfterValidator(to_utc)]
 Identifier = Annotated[int, Field(gt=0, le=9223372036854775807)]
 Duration = Annotated[int, Field(ge=0, le=9223372036854775807)]
 RgbValue = Annotated[int, Field(ge=0, le=2147483647)]

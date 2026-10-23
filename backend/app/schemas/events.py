@@ -3,7 +3,7 @@
 from typing import Annotated, Self
 from uuid import UUID
 
-from pydantic import Field, model_validator
+from pydantic import Field, field_validator, model_validator
 
 from app.models.enums import Color, EventType, Severity
 from app.schemas.domain import DataSchema, Duration, Identifier, UtcDateTime
@@ -22,6 +22,13 @@ class EventRequest(DataSchema):
     sound_amplitude: Annotated[float, Field(allow_inf_nan=False)] | None = None
     sound_duration_ms: Duration | None = None
     message: str
+
+    @field_validator("message")
+    @classmethod
+    def reject_nul(cls, value: str) -> str:
+        if "\x00" in value:
+            raise ValueError("Message must not contain NUL characters")
+        return value
 
     @model_validator(mode="after")
     def ordered_times(self) -> Self:
