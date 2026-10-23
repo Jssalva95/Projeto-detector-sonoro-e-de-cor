@@ -15,7 +15,7 @@ class ReadingFilters(DataSchema):
     color: Color | None = None
     sound_detected: bool | None = None
     limit: Annotated[int, Field(ge=1, le=200)] = 50
-    offset: Annotated[int, Field(ge=0)] = 0
+    offset: Annotated[int, Field(ge=0, le=9223372036854775807)] = 0
 
     @model_validator(mode="after")
     def ordered_dates(self) -> Self:

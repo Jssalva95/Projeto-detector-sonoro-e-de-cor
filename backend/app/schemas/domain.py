@@ -78,7 +78,7 @@ class SensorReadingCreate(DataSchema):
     blue_value: RgbValue
     color_confidence: Annotated[float, Field(ge=0, le=1)]
     sound_detected: bool
-    sound_amplitude: float
+    sound_amplitude: Annotated[float, Field(allow_inf_nan=False)]
     sound_trigger: bool | None = None
     sound_duration_ms: Duration
 

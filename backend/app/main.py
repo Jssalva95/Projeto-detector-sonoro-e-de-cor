@@ -31,4 +31,10 @@ async def safe_auth_validation(request: Request, error: RequestValidationError) 
     if request.url.path.startswith("/api/v1/auth/"):
         # FastAPI's default errors echo input, including passwords and tokens.
         return JSONResponse(status_code=422, content={"detail": "Invalid authentication payload"})
+    if request.url.path == "/api/v1/readings" and any(
+        item["type"] == "finite_number" for item in error.errors()
+    ):
+        # Numeric JSON overflow (e.g. 1e309) becomes infinity in the parser.
+        # Do not echo that non-JSON value in the validation error response.
+        return JSONResponse(status_code=422, content={"detail": "Reading numbers must be finite"})
     return await request_validation_exception_handler(request, error)

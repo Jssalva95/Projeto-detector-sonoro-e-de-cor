@@ -31,3 +31,12 @@ leituras para a associação anterior é intencional; não há tabela de associa
 históricas. Índices existentes e migration 0002 são suficientes para esta fase.
 
 Contrato completo: [readings.md](../readings.md).
+
+## Correção aprovada após auditoria
+
+A auditoria encontrou HTTP 500 para amplitude não finita e HTTP 503 para offset
+acima de BIGINT. O usuário aprovou rejeitar essas entradas com 422: amplitude
+de leitura deve ser finita e offset deve estar entre 0 e 9223372036854775807.
+Overflow de número JSON também é rejeitado sem ecoar infinito na resposta de erro.
+Amplitude bruta finita, inclusive negativa ou acima de 1, permanece aceita.
+Sem alteração de schema PostgreSQL, dependências ou contratos de eventos.

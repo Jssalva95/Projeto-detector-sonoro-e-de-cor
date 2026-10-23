@@ -1,6 +1,7 @@
 """Telemetry HTTP contracts against PostgreSQL, rolled back after every test."""
 
 from datetime import datetime, timezone
+import json
 from uuid import UUID, uuid4
 
 import pytest
@@ -107,6 +108,27 @@ def test_uuid_required_nullable_trigger_and_raw_amplitude(client, payload):
         assert response.status_code == 201
         assert response.json()["sound_trigger"] is trigger
         assert response.json()["sound_amplitude"] == amplitude
+
+
+@pytest.mark.parametrize("value", ["NaN", "Infinity", "-Infinity", "1e309", "-1e309"])
+def test_nonfinite_amplitude_rejected_without_insert(client, db, payload, value):
+    assert post(client, payload, sound_amplitude=value).status_code == 422
+    assert db.scalar(select(func.count()).select_from(SensorReading)) == 0
+
+
+@pytest.mark.parametrize("value", ["1e309", "-1e309"])
+def test_json_numeric_overflow_rejected_without_insert(client, db, payload, value):
+    body = json.dumps(payload | {"sound_amplitude": "overflow"}).replace('"overflow"', value)
+    response = client.post(PATH, headers=KEY_HEADER | {"Content-Type": "application/json"}, content=body)
+    assert response.status_code == 422
+    assert db.scalar(select(func.count()).select_from(SensorReading)) == 0
+
+
+def test_offset_bigint_boundary(client, admin, payload):
+    assert post(client, payload).status_code == 201
+    response = client.get(PATH, headers=admin, params={"offset": 9223372036854775807})
+    assert response.status_code == 200 and response.json() == []
+    assert client.get(PATH, headers=admin, params={"offset": 9223372036854775808}).status_code == 422
 
 
 def test_filters_inclusive_combined_false_and_empty(client, admin, payload):

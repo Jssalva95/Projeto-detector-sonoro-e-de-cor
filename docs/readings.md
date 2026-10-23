@@ -25,7 +25,9 @@ ou internos enviados pelo cliente são rejeitados.
 Timestamp exige fuso e é convertido para UTC. Não há limite artificial de idade
 ou de data futura. Cores: BLUE, RED, UNKNOWN. RGB é INTEGER não negativo (até
 2147483647, sem limite 255). Confidence fica entre 0 e 1. Amplitude permanece
-bruta, sem normalização nem CHECK 0..1. Duração é BIGINT não negativo.
+bruta, sem normalização nem CHECK 0..1, mas deve ser finita. NaN, infinitos e
+overflow numérico retornam 422; valores finitos negativos ou acima de 1 continuam
+aceitos. Duração é BIGINT não negativo.
 
 ## Integridade e erros
 
@@ -57,7 +59,8 @@ Filtros opcionais combinados por AND:
 - `color`: BLUE, RED ou UNKNOWN.
 - `sound_detected`: booleano, incluindo false.
 - `limit`: padrão 50, mínimo 1, máximo 200; fora da faixa retorna 422.
-- `offset`: padrão 0, mínimo 0.
+- `offset`: padrão 0, faixa 0..9223372036854775807 (limite técnico BIGINT do
+  PostgreSQL). Valores fora da faixa retornam 422 antes da consulta.
 
 Ordenação: timestamp DESC, id DESC, com LIMIT/OFFSET executados no PostgreSQL.
 Sem envelope ou contagem total. Empates de timestamp são resolvidos pelo ID.

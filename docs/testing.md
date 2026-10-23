@@ -191,3 +191,35 @@ machine_id, device_id, timestamp e UUID foram confirmados no banco real.
 
 Contrato e limites: [readings.md](readings.md). Nenhuma validação física pertence
 a esta fase; não houve integração com sensores reais.
+
+### Correções após auditoria da Fase 4
+
+A auditoria posterior encontrou duas lacunas na suíte inicial: amplitude não
+finita causava 500 e offset acima de BIGINT causava 503. Correções aprovadas:
+amplitude finita e offset limitado a 9223372036854775807, com retorno 422.
+O handler evita ecoar infinito quando um número JSON como 1e309 sofre overflow.
+
+Oito casos permanentes foram acrescentados em test_readings.py: cinco strings
+não finitas/overflow, dois números JSON com overflow e a fronteira BIGINT do
+offset. Entradas de amplitude rejeitadas não persistem leituras. A suíte existente
+continua verificando amplitude bruta negativa e acima de 1.
+
+Validação desta correção:
+
+- `docker compose build backend`: passou.
+- `docker compose run --rm --no-deps backend python -m pytest -q`: **164 passaram**,
+  nenhum ignorado; permanece o aviso preexistente Starlette/AnyIO.
+- `docker compose config --quiet` e `docker compose up -d --wait backend`: passaram.
+- `docker compose exec -T backend python -m alembic current`: 0002_domain_models (head).
+- `docker compose exec -T backend python -m alembic check`: sem divergências.
+- `docker compose exec -T backend python -m pip check`: sem incompatibilidades.
+- `docker compose exec -T backend python -m compileall -q app tests alembic`: passou.
+- `docker compose ps`: backend, PostgreSQL e frontend healthy.
+- Smoke HTTP via Python no Compose: /health, /ready, /docs e /openapi.json 200;
+  offset 0 e máximo BIGINT 200; offset acima do máximo 422; amplitude NaN,
+  Infinity, -Infinity e overflow textual/numérico 422. Sem dados de produção
+  inseridos, sem tokens impressos e sem schemas de teste remanescentes.
+- `git diff`, `git diff --check` e `git status --short`: revisados.
+
+Nenhuma dependência ou migration adicionada. Contratos de eventos preservados.
+As duas pendências identificadas foram resolvidas; frontend não foi modificado.
