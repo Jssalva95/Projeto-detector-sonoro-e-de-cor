@@ -1,8 +1,12 @@
 # Machine Tracker
 
+> **Fase 5 — eventos implementados e validados.** Ingestão idempotente por UUID,
+> consultas e reconhecimento: [docs/events.md](docs/events.md).
+> Suíte atual: 227 testes passaram; nenhum ignorado.
+
 > **Fase 4 — telemetria implementada e validada.** Ingestão e consulta de leituras,
 > filtros e paginação: [docs/readings.md](docs/readings.md).
-> Suíte atual: 156 testes passaram; nenhum ignorado.
+> Validação inicial: 156 testes; após correções de entradas-limite: 164 passaram.
 
 > **Fase 3 — máquinas, dispositivos e heartbeat.** Contratos e execução em
 > [docs/equipment.md](docs/equipment.md). Validação da fase: 115 testes passaram.

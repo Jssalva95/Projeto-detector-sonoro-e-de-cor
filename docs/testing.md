@@ -223,3 +223,60 @@ Validação desta correção:
 
 Nenhuma dependência ou migration adicionada. Contratos de eventos preservados.
 As duas pendências identificadas foram resolvidas; frontend não foi modificado.
+
+## Fase 5 — eventos
+
+Contrato aprovado: [events.md](events.md). A suíte completa contém **227 testes
+passando**, nenhum ignorado: 164 anteriores, 60 casos HTTP/contrato de eventos e
+3 casos de concorrência PostgreSQL. Persiste apenas o aviso Starlette/AnyIO.
+
+test_events.py valida persistência, UTC, tipos/severidades sem inferência,
+idempotência normalizada (incluindo null e reconhecimento posterior), conflitos
+sem sobrescrita, reassociação histórica, dispositivo inativo, filtros, paginação,
+roles, finalidade JWT, API key, reconhecimento pelo servidor e ausência de
+efeitos em Machine.status, heartbeat, leituras e alertas. Inclui valores não
+finitos e offset acima do limite BIGINT. Schema transacional removido por rollback.
+
+test_event_concurrency.py executa transações em conexões independentes: UUID
+idêntico resulta em uma ocorrência; UUID com dados divergentes em dispositivos
+distintos resulta em um vencedor e um conflito; reconhecimento concorrente por
+dois usuários preserva um único responsável/horário. Utiliza schema privado
+test_events_<uuid>, confirmado para permitir visibilidade entre conexões e removido
+no finally por downgrade da migration e DROP SCHEMA sem CASCADE. Não usa tabelas
+públicas. São testes funcionais de concorrência, não ensaios de carga.
+
+Comandos executados:
+
+```powershell
+docker compose build backend
+docker compose run --rm --no-deps backend python -m pytest -q
+docker compose config --quiet
+docker compose up -d --wait backend
+docker compose exec -T backend python -m alembic current
+docker compose exec -T backend python -m alembic check
+docker compose exec -T backend python -m pip check
+docker compose exec -T backend python -m compileall -q app tests alembic
+docker compose exec -T frontend npm run test
+docker compose exec -T frontend npm run typecheck
+docker compose exec -T frontend npm run build
+docker compose ps
+git diff --check
+git diff
+git status --short
+```
+
+Build e verificações passaram. Backend, PostgreSQL e frontend healthy; Alembic
+0002_domain_models (head), sem divergências. Frontend: 1 teste, typecheck e build
+passaram. Não há lint configurado. Sem novas dependências ou migrations.
+
+Smoke HTTP via script Python no Compose, sem imprimir credenciais/tokens:
+/health, /ready, /docs e /openapi.json 200; listagem autenticada de eventos 200;
+registro ausente (consulta/acknowledge) 404; ausência de credenciais e refresh
+na consulta 401; POST vazio com API key e offset acima do máximo 422.
+POST válido e acknowledge de registros existentes foram exercitados com banco
+isolado nos testes, sem introduzir ocorrências fictícias nas tabelas públicas.
+
+Após execução: zero schemas test_domain/test_events remanescentes; tabelas
+públicas machines, devices, sensor_readings, events e alerts vazias. Índices de
+events confirmados no banco real. Não houve alteração do volume, credenciais,
+schema de produção ou integração física. Fase 6 não implementada.

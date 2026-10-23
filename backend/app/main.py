@@ -10,6 +10,7 @@ from app.api.auth import router as auth_router
 from app.api.machines import router as machines_router
 from app.api.devices import router as devices_router
 from app.api.readings import router as readings_router
+from app.api.events import router as events_router
 from app.services.equipment import EquipmentError, NotFound, InactiveDevice
 
 app = FastAPI(title="Machine Monitor")
@@ -18,6 +19,7 @@ app.include_router(auth_router)
 app.include_router(machines_router)
 app.include_router(devices_router)
 app.include_router(readings_router)
+app.include_router(events_router)
 
 
 @app.exception_handler(EquipmentError)
@@ -37,4 +39,8 @@ async def safe_auth_validation(request: Request, error: RequestValidationError) 
         # Numeric JSON overflow (e.g. 1e309) becomes infinity in the parser.
         # Do not echo that non-JSON value in the validation error response.
         return JSONResponse(status_code=422, content={"detail": "Reading numbers must be finite"})
+    if request.url.path == "/api/v1/events" and any(
+        item["type"] == "finite_number" for item in error.errors()
+    ):
+        return JSONResponse(status_code=422, content={"detail": "Event numbers must be finite"})
     return await request_validation_exception_handler(request, error)
