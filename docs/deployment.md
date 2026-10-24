@@ -84,8 +84,13 @@ Não há simulador executável nesta fase. Nenhum hardware é necessário.
 
 ## Providers opcionais — Fase 6.1
 
-Os canais Telegram/e-mail permanecem desabilitados por padrão e não são
-acionados pela API nesta etapa. Para configuração, variáveis obrigatórias e
+Os canais Telegram/e-mail permanecem desabilitados por padrão. Os providers não
+são acionados pela API nesta etapa. Para configuração, variáveis obrigatórias e
 limites de envio, consulte [providers.md](providers.md). Alterações em `.env`
 exigem recriação do container para chegar ao ambiente do processo; nunca
 versione credenciais. O healthcheck da API não valida esses serviços externos.
+
+Na Fase 6.2, habilitar um canal permite enfileirar alertas para destinatários
+ativos já existentes no banco. Configure também `ALERT_COOLDOWN_SECONDS`, sem
+default (300 segundos foi a escolha explícita para o ambiente local).
+Não há worker nem envio nesta fase. Veja [alert-queue.md](alert-queue.md).

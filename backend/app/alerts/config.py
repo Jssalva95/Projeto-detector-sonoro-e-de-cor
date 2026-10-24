@@ -1,6 +1,7 @@
 """Explicit, channel-scoped configuration; disabled channels need no secrets."""
 
 import os
+import math
 import re
 from typing import Annotated, Literal, Self
 
@@ -9,6 +10,20 @@ from pydantic import BaseModel, ConfigDict, Field, SecretStr, ValidationError, f
 
 class AlertConfigurationError(ValueError):
     pass
+
+
+def queue_settings() -> tuple[tuple[str, ...], float]:
+    """Queue policy only; never construct providers or read their credentials."""
+    channels = tuple(channel for channel in ('TELEGRAM', 'EMAIL') if enabled(channel + '_ENABLED'))
+    if not channels:
+        return (), 0.0  # Not an operational cooldown: no channel can enqueue.
+    try:
+        seconds = float(os.environ.get('ALERT_COOLDOWN_SECONDS', ''))
+        if not math.isfinite(seconds) or seconds < 0:
+            raise ValueError
+    except ValueError:
+        raise AlertConfigurationError('ALERT_COOLDOWN_SECONDS must be finite and nonnegative') from None
+    return channels, seconds
 
 
 def mailbox(value: str) -> str:

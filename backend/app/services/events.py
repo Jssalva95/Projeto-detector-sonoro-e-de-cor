@@ -7,6 +7,8 @@ from sqlalchemy.orm import Session
 
 from app.models import Event
 from app.repositories import events as repository
+from app.repositories.alerts import latest_fault_transition
+from app.services.alerts import enqueue
 from app.schemas.events import EventFilters, EventRequest
 from app.services.equipment import Conflict, InactiveDevice, NotFound, get_device, get_machine
 
@@ -26,11 +28,15 @@ def create(session: Session, payload: EventRequest) -> tuple[Event, bool]:
             existing = repository.by_uuid(session, payload.uuid)
             if existing is not None:
                 return same_occurrence(existing, payload), False
-            get_machine(session, payload.machine_id)
+            # All device writers for this machine share a lock before ID
+            # allocation, keeping fault-cycle order equal to persistence order.
+            get_machine(session, payload.machine_id, lock=True)
             if device.machine_id != payload.machine_id:
                 raise Conflict("Device is not associated with this machine")
+            previous_transition = latest_fault_transition(session, payload.machine_id)
             created = repository.insert_if_absent(session, payload)
             if created is not None:
+                enqueue(session, created, previous_transition)
                 return created, True
             # Another transaction inserted this UUID. READ COMMITTED sees it now.
             existing = repository.by_uuid(session, payload.uuid)

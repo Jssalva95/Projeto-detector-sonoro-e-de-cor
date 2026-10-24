@@ -89,14 +89,15 @@ def test_concurrent_identical_uuid(concurrent_database):
 def test_concurrent_uuid_conflict_different_devices(concurrent_database, monkeypatch):
     session_scope, values, (device_ids, _) = concurrent_database
     barrier = Barrier(2, timeout=10)
-    original = repository.insert_if_absent
+    original = events.get_machine
 
-    def synchronized_insert(session, payload):
-        # Force both transactions past the initial lookup before either inserts.
+    def synchronized_machine(session, identifier, **kwargs):
+        # Both UUID lookups finish before contending for the new machine lock.
+        # A barrier inside insert would deadlock after serialization was added.
         barrier.wait()
-        return original(session, payload)
+        return original(session, identifier, **kwargs)
 
-    monkeypatch.setattr(repository, 'insert_if_absent', synchronized_insert)
+    monkeypatch.setattr(events, 'get_machine', synchronized_machine)
 
     def submit(device_id):
         with session_scope() as session:

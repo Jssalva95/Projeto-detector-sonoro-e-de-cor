@@ -12,6 +12,7 @@ from app.api.devices import router as devices_router
 from app.api.readings import router as readings_router
 from app.api.events import router as events_router
 from app.services.equipment import EquipmentError, NotFound, InactiveDevice
+from app.alerts.config import AlertConfigurationError
 
 app = FastAPI(title="Machine Monitor")
 app.include_router(router)
@@ -20,6 +21,11 @@ app.include_router(machines_router)
 app.include_router(devices_router)
 app.include_router(readings_router)
 app.include_router(events_router)
+
+
+@app.exception_handler(AlertConfigurationError)
+async def alert_configuration_error(request: Request, error: AlertConfigurationError) -> JSONResponse:
+    return JSONResponse(status_code=503, content={"detail": "Alert configuration unavailable"})
 
 
 @app.exception_handler(EquipmentError)

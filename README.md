@@ -1,8 +1,13 @@
 # Machine Tracker
 
+> **Fase 6.2 — fila transacional.** Novos ciclos de falha criam alertas PENDING
+> com proteção por UUID, ciclo e cooldown. Sem envio externo ou worker.
+> Contrato: [docs/alert-queue.md](docs/alert-queue.md).
+> Suíte atual: 319 testes passaram, nenhum ignorado.
+
 > **Fase 6.1 — providers Telegram/e-mail.** Configuração e limites em
 > [docs/providers.md](docs/providers.md). Sem disparo automático; a Fase 6
-> completa ainda não está concluída. Suíte atual: 297 testes passaram.
+> completa ainda não está concluída. Validação da parte 1: 297 testes passaram.
 
 > **Fase 5 — eventos implementados e validados.** Ingestão idempotente por UUID,
 > consultas e reconhecimento: [docs/events.md](docs/events.md).

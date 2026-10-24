@@ -91,9 +91,13 @@ serializáveis (por exemplo, infinito originado de 1e309), independentemente da
 categoria do erro. O tratamento de autenticação permanece separado.
 
 Não há alterações automáticas em Machine.status, heartbeat, firmware ou atividade
-de dispositivo. Não são gerados alertas, leituras, WebSockets, eventos derivados
-de readings ou detecção de offline/falha. Hardware, bridge e dashboard não fazem
-parte desta fase.
+de dispositivo. Não são geradas leituras, WebSockets, eventos derivados de readings
+ou detecção de offline/falha. Hardware, bridge e dashboard não fazem parte desta fase.
+
+Desde a Fase 6.2, novos FAULT_CONFIRMED podem criar alertas PENDING na mesma
+transação, sem envio externo. A ingestão também bloqueia a máquina para ordenar
+ciclos entre dispositivos. Configuração inválida da fila pode retornar 503 com
+rollback. Contrato e cooldown: [alert-queue.md](alert-queue.md).
 
 ## Testes
 

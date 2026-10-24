@@ -343,3 +343,42 @@ Sem mudanças em migrations, banco, `.env` real ou volume PostgreSQL.
 HTTPX 0.28.1 passou de dependência de desenvolvimento para execução.
 
 Escopo e limites: [providers.md](providers.md). Partes 6.2/6.3 não implementadas.
+
+## Fase 6.2 — fila transacional
+
+A limitação anterior sobre 6.2 é histórica. `test_alert_queue.py` acrescenta
+22 casos de persistência, ciclos, cooldown, configuração e concorrência.
+`conftest.py` desabilita canais no ambiente dos testes por padrão; casos de
+fila habilitam explicitamente seus canais e cooldown fictício. Configurações
+reais do operador não determinam os resultados nem provocam envios.
+
+A barreira do teste de conflito UUID entre dispositivos foi movida para antes
+do bloqueio por máquina, mantendo as assertions de um vencedor/um conflito.
+Uma barreira após adquirir esse bloqueio impediria artificialmente a segunda
+transação de alcançá-la. Não houve relaxamento das garantias verificadas.
+
+Validação executada:
+
+- `docker compose config --quiet` e `docker compose build backend`: passaram.
+- `docker compose run --rm --no-deps backend python -m pytest -q tests/test_alert_queue.py tests/test_event_concurrency.py`:
+  25 passaram.
+- `docker compose run --rm --no-deps backend python -m pytest -q`:
+  **319 passaram**, nenhum ignorado; aviso preexistente Starlette/AnyIO.
+- `docker compose up -d --wait backend`: passou.
+- `docker compose exec -T backend python -m pip check`: sem incompatibilidades.
+- `docker compose exec -T backend python -m compileall -q app tests alembic`: passou.
+- `docker compose exec -T backend python -m alembic current`: 0002_domain_models (head).
+- `docker compose exec -T backend python -m alembic check`: sem divergências.
+- Smoke Python no container: /health, /ready e /docs HTTP 200; cooldown efetivo
+  confirmado como 300 segundos, conforme escolha do usuário.
+- Consulta somente leitura PostgreSQL: zero schemas test_domain/test_events
+  remanescentes. A primeira tentativa teve erro de quoting PowerShell, corrigido
+  passando o script via stdin.
+- `docker compose ps`: três serviços healthy.
+- `git diff`, `git diff --check`, `git status --short`: revisados.
+- `git check-ignore .env`: arquivo continua ignorado.
+
+Somente ALERT_COOLDOWN_SECONDS foi configurado no `.env` local; credenciais
+preservadas. Não houve migrations, dependências novas, envio externo ou worker.
+Testes de persistência usam schemas isolados, sem criar destinatários de produção.
+Frontend não foi alterado nem teve sua suíte repetida. A parte 6.3 não foi iniciada.

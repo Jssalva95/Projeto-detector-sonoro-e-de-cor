@@ -6,6 +6,9 @@ Esta etapa implementa somente `AlertProvider.send(message, destination)`,
 integração com eventos ou alterações no banco. Não há extensões WhatsApp/SMS,
 conforme a restrição explícita aprovada para esta etapa.
 
+Desde a Fase 6.2, a [fila transacional](alert-queue.md) integra eventos e cooldown,
+sem chamar os providers. As limitações acima descrevem o módulo de providers.
+
 ## Configuração
 
 Use variáveis de ambiente; `.env.example` contém os nomes, sem credenciais.
