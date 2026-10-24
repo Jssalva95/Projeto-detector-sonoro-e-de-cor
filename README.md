@@ -1,8 +1,12 @@
 # Machine Tracker
 
+> **Fase 6.1 — providers Telegram/e-mail.** Configuração e limites em
+> [docs/providers.md](docs/providers.md). Sem disparo automático; a Fase 6
+> completa ainda não está concluída. Suíte atual: 297 testes passaram.
+
 > **Fase 5 — eventos implementados e validados.** Ingestão idempotente por UUID,
 > consultas e reconhecimento: [docs/events.md](docs/events.md).
-> Suíte atual: 227 testes passaram; nenhum ignorado.
+> Validação inicial: 227 testes; após correções: 250 passaram, nenhum ignorado.
 
 > **Fase 4 — telemetria implementada e validada.** Ingestão e consulta de leituras,
 > filtros e paginação: [docs/readings.md](docs/readings.md).

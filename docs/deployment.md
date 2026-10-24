@@ -81,3 +81,11 @@ docker compose down
 - `docs/`: execução e validação do bootstrap.
 
 Não há simulador executável nesta fase. Nenhum hardware é necessário.
+
+## Providers opcionais — Fase 6.1
+
+Os canais Telegram/e-mail permanecem desabilitados por padrão e não são
+acionados pela API nesta etapa. Para configuração, variáveis obrigatórias e
+limites de envio, consulte [providers.md](providers.md). Alterações em `.env`
+exigem recriação do container para chegar ao ambiente do processo; nunca
+versione credenciais. O healthcheck da API não valida esses serviços externos.

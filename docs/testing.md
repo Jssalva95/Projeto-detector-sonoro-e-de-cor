@@ -309,3 +309,37 @@ Validação executada nesta correção:
 Sem schemas de teste remanescentes; events e sensor_readings públicos vazios.
 Nenhuma migration, dependência ou alteração de credenciais. Frontend não alterado.
 As três pendências auditadas foram resolvidas; a Fase 6 não foi iniciada.
+
+## Fase 6.1 — providers e configuração
+
+A observação anterior sobre Fase 6 é histórica. Esta subetapa adiciona
+`test_alert_providers.py`: 47 casos de configuração, contratos Telegram/SMTP,
+TLS, thread, erros, timeouts, entradas inválidas, ausência de retry e proteção
+de segredos. Uma falha de fechamento SMTP após aceitação preserva o sucesso;
+após erro de envio preserva o erro original e registra aviso sanitizado.
+
+Validação executada na retomada:
+
+- Local: `..\.venv\Scripts\python.exe -m pytest -q tests/test_alert_providers.py -p no:cacheprovider`
+  no diretório backend: 47 passaram.
+- `docker compose config --quiet` e `docker compose build backend`: passaram.
+- `docker compose run --rm --no-deps backend python -m pytest -q`:
+  **297 passaram**, nenhum ignorado; aviso preexistente Starlette/AnyIO.
+- `docker compose run --rm --no-deps backend python -m pip check`: sem incompatibilidades.
+- `docker compose run --rm --no-deps backend python -m compileall -q app tests alembic`: passou.
+- `docker compose up -d --wait backend`: backend atualizado healthy.
+- `docker compose exec -T backend python -m alembic current`: 0002_domain_models (head).
+- `docker compose exec -T backend python -m alembic check`: sem divergências.
+- Smoke via Python/urllib no backend: /health, /ready e /docs retornaram 200;
+  providers importados e fábrica com canais explicitamente desabilitados
+  retornou dicionário vazio sem I/O externo.
+- `docker compose ps`: backend, PostgreSQL e frontend healthy.
+- `git diff`, `git diff --check` e `git status --short`: revisados.
+
+Não houve testes de entrega externa, handshake TLS real ou validação de
+credenciais reais. HTTP e SMTP foram simulados nos testes específicos.
+Frontend não foi alterado; seus testes/build não foram repetidos.
+Sem mudanças em migrations, banco, `.env` real ou volume PostgreSQL.
+HTTPX 0.28.1 passou de dependência de desenvolvimento para execução.
+
+Escopo e limites: [providers.md](providers.md). Partes 6.2/6.3 não implementadas.
