@@ -12,6 +12,16 @@ class AlertConfigurationError(ValueError):
     pass
 
 
+def poll_interval() -> float:
+    try:
+        value = float(os.environ.get('ALERT_POLL_INTERVAL_SECONDS', ''))
+        if not math.isfinite(value) or value <= 0:
+            raise ValueError
+    except ValueError:
+        raise AlertConfigurationError('ALERT_POLL_INTERVAL_SECONDS must be finite and positive') from None
+    return value
+
+
 def queue_settings() -> tuple[tuple[str, ...], float]:
     """Queue policy only; never construct providers or read their credentials."""
     channels = tuple(channel for channel in ('TELEGRAM', 'EMAIL') if enabled(channel + '_ENABLED'))

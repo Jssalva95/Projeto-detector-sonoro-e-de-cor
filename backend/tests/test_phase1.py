@@ -113,7 +113,7 @@ def test_baseline_migration_applied() -> None:
     engine = create_engine(database_url(), hide_parameters=True)
     try:
         with engine.connect() as connection:
-            assert connection.scalar(text("SELECT version_num FROM alembic_version")) == "0002_domain_models"
+            assert connection.scalar(text("SELECT version_num FROM alembic_version")) == "0003_alert_attempts"
             columns = inspect(connection).get_columns("alembic_version")
             assert [column["name"] for column in columns] == ["version_num"]
     finally:

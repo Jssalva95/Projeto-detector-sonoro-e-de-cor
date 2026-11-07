@@ -171,6 +171,7 @@ class Alert(IdentityCreated, Base):
     channel: Mapped[str] = mapped_column(Text)
     status: Mapped[str] = mapped_column(Text)
     sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    attempt_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     error_message: Mapped[str | None] = mapped_column(Text)
     event: Mapped[Event] = relationship(back_populates="alerts")
     recipient: Mapped[AlertRecipient] = relationship(back_populates="alerts")

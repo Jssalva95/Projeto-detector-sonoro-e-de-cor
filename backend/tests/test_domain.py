@@ -31,6 +31,15 @@ def domain_migration():
     return module
 
 
+def attempt_migration():
+    path = Path('alembic/versions/0003_alert_attempts.py')
+    spec = importlib.util.spec_from_file_location('attempt_migration', path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 @pytest.fixture
 def db():
     if not os.environ.get("DATABASE_URL"):
@@ -46,6 +55,7 @@ def db():
                 connection.execute(text(f'SET LOCAL search_path TO "{schema}"'))
                 with Operations.context(MigrationContext.configure(connection)):
                     domain_migration().upgrade()
+                    attempt_migration().upgrade()
                 with Session(bind=connection, join_transaction_mode="create_savepoint") as session:
                     yield session
             finally:
@@ -218,5 +228,6 @@ def test_migration_structure_and_downgrade_in_isolated_schema(db):
         checks = inspector.get_check_constraints(table)
         assert all("sound_amplitude" not in check["sqltext"] for check in checks)
     with Operations.context(MigrationContext.configure(connection)):
+        attempt_migration().downgrade()
         domain_migration().downgrade()
     assert inspect(connection).get_table_names() == []

@@ -49,15 +49,42 @@ a existência do destinatário.
 - E-mail usa `smtplib` em `asyncio.to_thread`, valida certificados e hostname,
   faz STARTTLS antes da autenticação ou usa TLS desde a conexão (`ssl`).
   Assunto fixo: `Machine Monitor — alerta`; corpo em texto simples.
+- A negociação de autenticação mantém os métodos suportados pelo `smtplib`.
+  Se houver rejeição e os métodos seguintes também falharem, preserva a
+  classificação sanitizada da primeira rejeição. Uma autenticação posterior
+  bem-sucedida permite o envio. Não abre outra conexão nem repete o envio.
+  Respostas EHLO inválidas interrompem a operação antes de autenticar/enviar.
 - Timeout SMTP é por operação de socket; não é limite global de duração.
   Cancelar a coroutine não interrompe a thread SMTP em andamento.
 - Após aceitação SMTP, falha de fechamento não transforma sucesso em falha.
   Registra apenas `smtp_cleanup_failed`. Se o envio falhou, preserva seu erro.
 
-Erros: `invalid_message`, `invalid_destination`, `invalid_email_input`,
-`telegram_rejected`, `email_rejected`, `delivery_unconfirmed`.
-O último indica que não se pode concluir entrega ou ausência dela. Nenhum desses
-códigos autoriza retry automático; essa política pertence às etapas seguintes.
+Erros de entrada/Telegram: `invalid_message`, `invalid_destination`,
+`invalid_email_input`, `telegram_rejected` e `delivery_unconfirmed`.
+
+Classificação SMTP, também preservada em `alerts.error_message` pelo worker:
+
+| Código | Significado |
+| --- | --- |
+| `email_connection_failed` | Falha ao estabelecer a sessão SMTP; envio não iniciado. |
+| `email_tls_failed` | Falha de TLS/certificado ou STARTTLS indisponível; envio não iniciado. |
+| `email_protocol_failed` | Falha na negociação EHLO; envio não iniciado. |
+| `email_auth_rejected` | Servidor rejeitou autenticação; não implica necessariamente senha incorreta. |
+| `email_app_password_required` | Rejeição 534 com exigência explícita de senha de aplicativo. Outras respostas 534 continuam como rejeição genérica. |
+| `email_auth_unavailable` | Servidor não oferece autenticação compatível. |
+| `email_auth_connection_failed` | Falha durante login sem rejeição anterior conhecida; envio não iniciado. |
+| `email_rejected` | Rejeição SMTP explícita durante envio, incluindo destinatário recusado. |
+| `delivery_unconfirmed` | Falha durante `send_message` sem confirmação conclusiva; pode haver aceitação. Também usado pelo worker para exceções inesperadas. |
+
+O provider não retorna nem registra o texto remoto, usuário, senha ou payload.
+Somente a classificação sanitizada da primeira rejeição é preservada. Não altera
+registros históricos classificados antes desta correção. Nenhum desses códigos
+autoriza retry automático, inclusive falhas anteriores ao envio.
+
+Para Gmail com login por senha, a conta pode exigir senha de aplicativo. O código
+diagnostica essa exigência, mas não cria credenciais nem contorna a política do
+provedor. EMAIL_ENABLED deve estar habilitado para operação normal; alterar `.env`
+não atualiza o ambiente de containers que já estão em execução.
 
 ## Validação e limites
 
@@ -70,10 +97,16 @@ docker compose up -d --wait backend
 ```
 
 Os testes usam credenciais fictícias, HTTPX MockTransport e SMTP simulado.
-Verificam sucesso, falhas, limites, ausência de retries, parâmetros TLS,
-thread, redaction e fechamento. Não enviam mensagens externas e não validam
+Verificam sucesso, falhas, limites, ausência de retries de envio, parâmetros TLS,
+thread, redaction e fechamento. A regressão de autenticação executa `login/auth`
+reais da biblioteca com apenas o transporte substituído: primeira rejeição seguida
+de desconexão, timeout, nova rejeição ou sucesso, nos dois modos TLS. Não enviam
+mensagens externas e não validam
 handshake TLS real, credenciais de produção ou recebimento em caixa/chat.
 Esses ensaios externos dependem de configuração e autorização específicas.
 
 HTTPX 0.28.1 já existia nos testes e passou a dependência de execução para
 Telegram. SMTP utiliza a biblioteca padrão, sem dependência adicional.
+
+Na Fase 6.3, o [worker separado](alert-worker.md) chama esses providers após
+reservar a tentativa no banco. A API continua sem enviar diretamente.

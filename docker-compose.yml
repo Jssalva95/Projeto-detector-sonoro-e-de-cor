@@ -17,8 +17,9 @@ services:
       <<: *health
       test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
   backend:
+    image: projeto-detector-sonoro-e-de-cor-backend
     build: ./backend
-    environment:
+    environment: &backend_environment
       DATABASE_URL: ${DATABASE_URL:?Defina DATABASE_URL}
       BACKEND_PORT: ${BACKEND_PORT:?Defina BACKEND_PORT}
       JWT_SECRET: ${JWT_SECRET:?Defina JWT_SECRET}
@@ -28,6 +29,7 @@ services:
       DEVICE_API_KEY: ${DEVICE_API_KEY:?Defina DEVICE_API_KEY}
       TELEGRAM_ENABLED: ${TELEGRAM_ENABLED:-false}
       ALERT_COOLDOWN_SECONDS: ${ALERT_COOLDOWN_SECONDS:-}
+      ALERT_POLL_INTERVAL_SECONDS: ${ALERT_POLL_INTERVAL_SECONDS:-}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       TELEGRAM_TIMEOUT_SECONDS: ${TELEGRAM_TIMEOUT_SECONDS:-}
       EMAIL_ENABLED: ${EMAIL_ENABLED:-false}
@@ -46,6 +48,15 @@ services:
     healthcheck:
       <<: *health
       test: ["CMD", "python", "-c", "import os, urllib.request; urllib.request.urlopen('http://localhost:' + os.environ['BACKEND_PORT'] + '/ready')"]
+  alert-worker:
+    # Same image as the API; build backend before starting this profile.
+    image: projeto-detector-sonoro-e-de-cor-backend
+    profiles: [alerts]
+    command: ["python", "-m", "app.alerts.worker"]
+    environment: *backend_environment
+    depends_on:
+      postgres:
+        condition: service_healthy
   frontend:
     build: ./frontend
     environment:

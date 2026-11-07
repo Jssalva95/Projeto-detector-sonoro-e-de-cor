@@ -1,9 +1,14 @@
 # Machine Tracker
 
+> **Fase 6.3 — worker e tentativas manuais.** Processamento separado com reserva
+> durável e sem retry automático de resultados incertos. Ativação e limites em
+> [docs/alert-worker.md](docs/alert-worker.md). Entrega externa ainda não validada.
+> Suíte atual: 357 testes passaram, incluindo parada com fila ocupada.
+
 > **Fase 6.2 — fila transacional.** Novos ciclos de falha criam alertas PENDING
 > com proteção por UUID, ciclo e cooldown. Sem envio externo ou worker.
 > Contrato: [docs/alert-queue.md](docs/alert-queue.md).
-> Suíte atual: 319 testes passaram, nenhum ignorado.
+> Validação da parte 2: 319 testes passaram, nenhum ignorado.
 
 > **Fase 6.1 — providers Telegram/e-mail.** Configuração e limites em
 > [docs/providers.md](docs/providers.md). Sem disparo automático; a Fase 6

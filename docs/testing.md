@@ -382,3 +382,119 @@ Somente ALERT_COOLDOWN_SECONDS foi configurado no `.env` local; credenciais
 preservadas. Não houve migrations, dependências novas, envio externo ou worker.
 Testes de persistência usam schemas isolados, sem criar destinatários de produção.
 Frontend não foi alterado nem teve sua suíte repetida. A parte 6.3 não foi iniciada.
+
+## Fase 6.3 — worker, tentativas e retomada após interrupção
+
+A observação anterior sobre 6.3 é histórica. O worker, a CLI administrativa,
+o template, a migration 0003 e 35 testes de entrega estavam preservados após
+a interrupção. A auditoria reexecutou 354 testes com sucesso, mas identificou
+uma lacuna: processamentos que não suspendem a coroutine impediam o loop de
+executar o callback de parada enquanto a fila permanecesse ocupada.
+
+Na retomada, foram adicionados três testes permanentes em test_alert_delivery.py:
+SIGINT e SIGTERM durante processamento imediato, mais o cenário PostgreSQL em
+que o primeiro destinatário é inativo e o próximo alerta deve permanecer sem
+reserva. Antes da correção, os três falharam: cinco iterações em vez de uma e
+consumo indevido do próximo alerta. Após ceder controle com asyncio.sleep(0)
+entre itens, os três passaram. Isso não adiciona atraso operacional nem cancela
+uma tentativa em andamento.
+
+Validação executada em 2026-11-02:
+
+- Tentativa local de pytest: coleta bloqueada por ausência de alembic.migration
+  no venv local. Nenhuma dependência foi instalada; a validação prosseguiu no Docker.
+- `docker compose build backend`: passou, inclusive após a correção. O tag
+  python:3.11-slim resolveu uma imagem base mais recente; a suíte final foi
+  executada sobre a imagem reconstruída, com as dependências do projeto fixadas.
+- `docker compose run --rm --no-deps backend python -m pytest -q tests/test_alert_delivery.py -k busy`:
+  três falhas reproduzidas antes da correção; depois, três passaram.
+- `docker compose run --rm --no-deps backend python -m pytest -q`:
+  **357 passaram**, nenhum ignorado; aviso preexistente Starlette/AnyIO.
+- `docker compose config --quiet` e `docker compose up -d --wait backend`: passaram.
+- `docker compose exec -T backend python -m pip check`: sem incompatibilidades.
+- `docker compose exec -T backend python -m compileall -q app tests alembic`: passou.
+- `docker compose exec -T backend python -m alembic current`: 0003_alert_attempts (head).
+- `docker compose exec -T backend python -m alembic check`: sem divergências.
+- Smoke Python no container: /health, /ready, /docs e /openapi.json HTTP 200;
+  polling efetivo de 10s e cooldown de 300s confirmados.
+- `docker compose run --rm --no-deps -e TELEGRAM_ENABLED=false -e EMAIL_ENABLED=false alert-worker python -m app.alerts.worker --once`:
+  inicializou com channels=none e encerrou com código 0.
+- `docker compose ps`: backend, PostgreSQL e frontend healthy.
+- Consulta PostgreSQL somente leitura: zero schemas de teste remanescentes.
+- `git diff`, `git diff --check` e `git status --short`: revisados.
+
+Os testes de entrega cobrem reserva confirmada antes do transporte, ausência de
+lock durante o envio, concorrência e SKIP LOCKED, falhas de commit, cancelamento,
+resultados incertos sem retry automático, destinatário inelegível, histórico de
+tentativas manuais, validação de parâmetros, template e upgrade/downgrade da
+migration em schema isolado. Não houve downgrade no banco público.
+
+Nesta retomada não houve alteração do .env, novas dependências, mudanças adicionais
+de schema ou envios reais. A migration 0003 já estava aplicada e foi conferida.
+Frontend não foi alterado nem teve sua suíte repetida. Entrega real Telegram/e-mail,
+TLS externo e carga de produção permanecem não validados. A suíte não garante
+ausência de falhas futuras. Operação e limites: [alert-worker.md](alert-worker.md).
+
+## Fase 6.3 — diagnóstico SMTP e validação final em 2026-11-07
+
+O registro de 2026-11-02 acima é histórico. Após aquela validação, o diagnóstico
+real identificou uma rejeição SMTP 534 exigindo senha de aplicativo, seguida de
+desconexão durante a tentativa de outro método de autenticação. Com a senha de
+aplicativo configurada pelo usuário, a autenticação retornou 235. Um envio único
+autorizado foi aceito pelo servidor, e o usuário confirmou o recebimento do e-mail
+com assunto `Machine Monitor — alerta`. Esse ensaio chamou o provider diretamente;
+não comprova o fluxo externo completo de evento, fila e worker.
+
+A correção posterior preserva a classificação sanitizada da primeira rejeição
+quando a negociação termina em falha. Se outro método autenticar com sucesso,
+o envio continua permitido. Foram separados os códigos de conexão, TLS, EHLO,
+autenticação, exigência de senha de aplicativo, destinatário recusado e resultado
+incerto durante envio. O worker preserva esses códigos em `alerts.error_message`,
+sem registrar respostas remotas ou segredos e sem retry automático. Consulte a
+tabela de códigos em [providers.md](providers.md).
+
+Na revisão após a interrupção, foram executados:
+
+- `docker compose build backend`: aprovado. A tag Python 3.11-slim resolveu uma
+  imagem base mais recente; a suíte foi executada sobre a imagem reconstruída.
+- `docker compose run --rm -T --no-deps backend python -m pytest -q`:
+  **395 testes passaram**, nenhum ignorado; um aviso preexistente de depreciação
+  Starlette/AnyIO. Inclui regressões SMTP e persistência dos novos códigos.
+- Em container temporário com canais desabilitados: `python -m pip check`,
+  `python -m compileall -q app tests alembic`, `python -m alembic current` e
+  `python -m alembic check`: aprovados; migration 0003 no head, sem divergências.
+- Inicialização da API nessa imagem: `/health`, `/ready` e `/docs` com HTTP 200.
+- Worker `--once` com canais desabilitados: inicializou e encerrou com código 0.
+- `git diff --check`, revisão de diff/status e `git check-ignore .env`: sem erros
+  de whitespace; alterações existentes preservadas; `.env` permanece ignorado.
+
+## Fase 6.3 — aplicação da imagem validada em 2026-11-07
+
+A revisão encontrou o backend ativo ainda na imagem anterior à correção SMTP.
+Após autorização do usuário, a imagem já validada foi aplicada sem novo build
+ou alteração de código entre os testes e a implantação. Foram executados:
+
+- `docker compose config --quiet`: configuração válida.
+- `docker compose run --rm -T --no-deps backend python -m alembic current`:
+  `0003_alert_attempts (head)` já aplicada; não foi necessária nova migration.
+- `docker compose up -d --no-deps --wait backend`: backend recriado e healthy.
+- Script Python via `docker compose exec -T backend python -B -`: confirmou
+  `_AuthenticationDiagnostics`, os sete códigos SMTP adicionais aceitos pelo
+  worker e HTTP 200 em `/health`, `/ready` e `/docs` no container atualizado.
+  Também executou `python -m pip check`, `python -m alembic current` e
+  `python -m alembic check`: sem incompatibilidades ou divergências.
+- `docker compose run --rm -T --no-deps -e TELEGRAM_ENABLED=false -e EMAIL_ENABLED=false alert-worker python -m app.alerts.worker --once`:
+  inicializou com `channels=none` e encerrou com código 0, usando a imagem atualizada.
+
+PostgreSQL, volume de dados, frontend e `.env` foram preservados. O perfil opcional
+do worker não foi ativado para consumo contínuo de filas. Não houve novos envios
+reais nessas validações nem repetição da suíte após a alteração apenas documental.
+O commit fica a cargo do usuário.
+
+As duas pendências de documentação e aplicação da imagem ao backend estão
+resolvidas. Permanecem como limites de validação externa: entrega real pelo
+Telegram, fluxo completo evento → fila → worker → destinatário externo e carga
+de produção. O recebimento anterior valida o envio direto de e-mail antes da
+correção de diagnóstico; a versão corrigida foi validada com transportes simulados.
+Esta conclusão não equivale a garantir ausência de falhas futuras nem autoriza
+envios externos adicionais. A Fase 7 não foi iniciada.

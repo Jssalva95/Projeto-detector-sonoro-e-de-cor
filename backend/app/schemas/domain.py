@@ -148,4 +148,4 @@ class AlertCreate(DataSchema):
 
 
 class AlertRead(AlertCreate, Created):
-    pass
+    attempt_started_at: UtcDateTime | None = None

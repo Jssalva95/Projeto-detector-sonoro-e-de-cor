@@ -94,3 +94,14 @@ Na Fase 6.2, habilitar um canal permite enfileirar alertas para destinatários
 ativos já existentes no banco. Configure também `ALERT_COOLDOWN_SECONDS`, sem
 default (300 segundos foi a escolha explícita para o ambiente local).
 Não há worker nem envio nesta fase. Veja [alert-queue.md](alert-queue.md).
+
+## Worker opcional — Fase 6.3
+
+O processamento separado foi adicionado na Fase 6.3. Antes de atualizar o backend,
+aplique `docker compose run --rm --no-deps backend python -m alembic upgrade head`
+com a imagem reconstruída. Configure `ALERT_POLL_INTERVAL_SECONDS` (10 segundos
+foi o valor aprovado para este ambiente). A migration é aditiva, sem remover dados.
+
+O worker não inicia no `docker compose up` comum. Consulte [alert-worker.md](alert-worker.md)
+para ativação explícita do perfil, teste sem envio e administração manual.
+Não ativar canais reais em smoke tests: o worker pode consumir filas existentes.

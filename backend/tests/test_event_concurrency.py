@@ -19,7 +19,7 @@ from app.schemas.domain import EventRead
 from app.schemas.events import EventRequest
 from app.services import events
 from app.services.equipment import Conflict
-from test_domain import domain_migration
+from test_domain import domain_migration, attempt_migration
 
 
 @pytest.fixture
@@ -34,6 +34,7 @@ def concurrent_database():
         connection.execute(text(f'SET LOCAL search_path TO "{schema}"'))
         with Operations.context(MigrationContext.configure(connection)):
             domain_migration().upgrade()
+            attempt_migration().upgrade()
 
     @contextmanager
     def session_scope():
@@ -61,6 +62,7 @@ def concurrent_database():
             with engine.begin() as connection:
                 connection.execute(text(f'SET LOCAL search_path TO "{schema}"'))
                 with Operations.context(MigrationContext.configure(connection)):
+                    attempt_migration().downgrade()
                     domain_migration().downgrade()
                 connection.execute(text(f'DROP SCHEMA "{schema}"'))
         finally:

@@ -101,3 +101,14 @@ Os resultados acima registram a etapa inicial. A revisão de domínio atual é
   ao iniciar o serviço existente. Um teste teve autoflush antes de preencher todos
   os campos de reconhecimento; corrigida a fixture sem relaxar a constraint.
 - Permanece apenas o aviso de depreciação Starlette/AnyIO já existente.
+
+## Fase 6.3 — marcador de tentativa
+
+A migration `0003_alert_attempts` sucede `0002_domain_models` e acrescenta
+`alerts.attempt_started_at TIMESTAMPTZ NULL`, sem default ou backfill. Registros,
+PKs, FKs, índices e constraints existentes são preservados. AlertRead passa a
+incluir esse timestamp opcional em UTC; não foi criada rota REST nova.
+
+O marcador impede redispatch automático de tentativas já reservadas. Detalhes e
+limites de recuperação em [alert-worker.md](alert-worker.md). Referências à
+revisão 0002 nos resultados anteriores desta página são históricas.

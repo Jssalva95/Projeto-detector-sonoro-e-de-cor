@@ -75,4 +75,5 @@ docker compose run --rm --no-deps backend python -m pytest -q
 docker compose up -d --wait backend
 ```
 
-A etapa seguinte é processamento da fila; não está implementada nesta entrega.
+O processamento da fila foi acrescentado na [Fase 6.3](alert-worker.md), em um
+processo separado. Este documento descreve somente as regras de enfileiramento.
