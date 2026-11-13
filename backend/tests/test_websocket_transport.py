@@ -24,7 +24,7 @@ from test_websocket import ORIGIN, PATH, frame, ws_environment
 
 
 @pytest.fixture
-def live_server(concurrent_database, ws_environment):
+def live_server(concurrent_database, ws_environment, request):
     sessions, _, ids = concurrent_database
     with sessions() as session:
         schema = session.scalar(text('SELECT current_schema()'))
@@ -34,7 +34,9 @@ def live_server(concurrent_database, ws_environment):
     environment = os.environ.copy()
     environment.update(
         DATABASE_URL=database_url().update_query_dict({'options': '-csearch_path=' + schema}).render_as_string(hide_password=False),
-        BACKEND_PORT=str(port), WS_AUTH_TIMEOUT_SECONDS='0.3',
+        # Allow cold PostgreSQL authentication in integration tests. Only the
+        # deadline test requests 0.3s; these are test limits, not server defaults.
+        BACKEND_PORT=str(port), WS_AUTH_TIMEOUT_SECONDS=str(getattr(request, 'param', 2)),
         EMAIL_ENABLED='false', TELEGRAM_ENABLED='false',
         DEVICE_API_KEY='live-publication-test-key',
     )
@@ -138,6 +140,7 @@ def test_live_origin_rejection_and_query_redaction(live_server):
     assert 'query-secret-must-not-leak' not in logs.read().decode()
 
 
+@pytest.mark.parametrize('live_server', [0.3], indirect=True)
 def test_live_transport_size_binary_and_auth_deadline(live_server):
     url, *_ = live_server
     for payload, expected in [('x' * 4097, 1009), (b'binary', 1003), (None, 4408)]:

@@ -1,11 +1,12 @@
 # Machine Tracker
 
-> **Fase 7.2 — publicação WebSocket após commit.** Eventos críticos novos são
+> **Fase 7 concluída — WebSocket e validação integrada (7.3).** Eventos críticos novos são
 > distribuídos para conexões autenticadas, com filas limitadas por cliente e
 > proteção contra retransmissão por UUID. Entrega transitória em processo único;
 > reconexão exige atualização por REST. Contratos e configuração:
 > [docs/websocket.md](docs/websocket.md). Não há frontend novo.
-> Validação atual: 466 testes passaram. A parte 7.3 permanece separada.
+> Validação atual: 475 testes passaram, incluindo recuperação por REST após
+> reconexão e isolamento entre publicação WebSocket e fila de alertas.
 
 > **Fase 6.3 — worker e tentativas manuais.** Processamento separado com reserva
 > durável e sem retry automático de resultados incertos. Ativação e limites em

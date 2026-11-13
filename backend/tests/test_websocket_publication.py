@@ -14,7 +14,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app.api import dependencies
 from app.main import app
-from app.models import Event
+from app.models import Alert, AlertRecipient, Event
 from app.websocket.connection import ProtocolViolation
 from app.websocket.manager import ConnectionManager
 from app.websocket.schemas import EventNotification
@@ -203,3 +203,42 @@ def test_closed_loop_publication_is_safe(caplog):
     manager = asyncio.run(create_manager())
     manager.publish(notification())
     assert 'websocket_publication_unavailable' in caplog.text
+
+
+@pytest.mark.parametrize('failure', ['publication', 'transaction'])
+def test_alert_queue_remains_atomic_and_idempotent(publication_api, monkeypatch, failure):
+    client, payload, received, sessions, publisher = publication_api
+    # Only enable enqueueing in this isolated schema; no worker/provider is run.
+    monkeypatch.setenv('EMAIL_ENABLED', 'true')
+    monkeypatch.setenv('ALERT_COOLDOWN_SECONDS', '60')
+    with sessions() as session:
+        session.add(AlertRecipient(name='Isolated WS test', channel='EMAIL',
+                                   destination='ws-test@example.invalid', is_active=True))
+
+    if failure == 'publication':
+        def fail(notification):
+            raise RuntimeError('isolated publication failure')
+        monkeypatch.setattr(publisher, 'publish', fail)
+        assert post(client, payload).status_code == 201
+        assert post(client, payload).status_code == 200
+    else:
+        @contextmanager
+        def failed_transaction():
+            with sessions() as session:
+                yield session
+                assert len(list(session.scalars(select(Alert)))) == 1
+                raise SQLAlchemyError('isolated transaction failure')
+        monkeypatch.setattr(dependencies, 'session_scope', failed_transaction)
+        assert post(client, payload).status_code == 503
+
+    assert received == []
+    with sessions() as session:
+        events = list(session.scalars(select(Event)))
+        alerts = list(session.scalars(select(Alert)))
+        if failure == 'transaction':
+            assert events == [] and alerts == []
+        else:
+            assert len(events) == len(alerts) == 1
+            assert alerts[0].event_id == events[0].id
+            assert alerts[0].status == 'PENDING'
+            assert alerts[0].attempt_started_at is None

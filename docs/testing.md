@@ -642,3 +642,62 @@ Limites documentados: entrega transitória, sem replay ou ordenação global; RE
 é necessário na reconexão. A Fase 7.3 não foi iniciada. Na inspeção do commit
 `75bfdb0`, arquivos de código/testes/documentação da 7.1 ainda estavam untracked;
 devem ser incluídos no próximo commit junto das alterações da 7.2.
+
+## Encerramento da Fase 7 — 7.3 — 2026-11-12
+
+Base: commit `dad4cfa`, que incluiu os arquivos anteriormente untracked; árvore
+limpa antes desta tarefa. A 7.3 adicionou nove casos de teste e consolidou o
+procedimento de reconexão e a matriz de critérios em [websocket.md](websocket.md).
+Nenhum código de produção, contrato, variável de ambiente ou schema foi alterado.
+
+Novos cenários em PostgreSQL e sockets Uvicorn reais: os quatro eventos críticos
+com payload exato, os dois tipos não transmitidos, consulta REST do evento recebido,
+reconhecimento sem republicação, desconexão/reconexão sem replay, recuperação do
+evento perdido por REST e recebimento de evento novo. Testes transacionais também
+confirmam que uma falha de publicação mantém um único alerta PENDING após replay,
+e que falha da transação elimina tanto evento quanto alerta.
+
+Comandos executados:
+
+```powershell
+docker compose run --rm -T --no-deps --volume ./backend:/app:ro backend python -m pytest -q -p no:cacheprovider tests/test_websocket_integration.py tests/test_websocket_publication.py
+docker compose build backend
+docker compose run --rm -T --no-deps backend python -m pytest -q
+docker compose config --quiet
+docker compose ps
+git diff --check
+git diff -- backend/tests/test_websocket_transport.py backend/tests/test_websocket_publication.py docs/websocket.md
+git status --short
+```
+
+A primeira execução focada teve 22 sucessos e uma falha: autenticação encerrada
+com 4408 na fixture com prazo de 0,3s. A fixture passou a usar 2s nos cenários
+integrados, preservando explicitamente 0,3s no teste de deadline. Ambos são valores
+exclusivos de teste; os 10s aprovados para o ambiente local não foram alterados.
+Não foi removida nenhuma assertion de autenticação ou expiração.
+
+Após a correção, a suíte completa executada **na imagem construída**, sem bind
+mount de código, passou: **475 testes em 105,90s**, nenhum ignorado. Permanece
+um aviso preexistente de depreciação do alias BlockingPortal em Starlette/AnyIO.
+
+Também foram executados na imagem, agrupados por um comando Python/subprocess
+com `check=True`: `python -m pip check`, `python -m compileall -q app tests`,
+`python -m alembic current` e `python -m alembic check`. Todos passaram; migration
+`0003_alert_attempts (head)`, sem novas operações estruturais. Configuração Compose
+e build passaram. Consulta HTTP por Python no backend existente retornou 200 para
+`/health`, `/ready` e `/docs`; backend, PostgreSQL e frontend estavam `healthy`.
+Não foi necessário recriar serviços: a aplicação não mudou, somente testes/docs.
+
+Critérios da Fase 7 satisfeitos dentro do contrato aprovado: autenticação e
+controle de origem, transmissão dos quatro tipos críticos após commit,
+idempotência, filas limitadas com isolamento de clientes, expiração/revalidação,
+recuperação por REST e documentação dos limites de entrega transitória.
+
+Sem dependências, migrations ou configurações novas. Nenhum envio externo; o
+worker não foi iniciado. Os testes de fila usam destinatário fictício e schema
+privado, somente para verificar persistência. Não há validação de hardware ou
+frontend nesta etapa, nem ensaio de carga/reinício abrupto. Execução validada em
+Docker via PowerShell; Python nativo no Windows não foi executado.
+
+Nenhuma pendência funcional conhecida no escopo da Fase 7. Commit fica a cargo
+do usuário; o próximo trabalho é propor a Fase 8, mediante autorização.

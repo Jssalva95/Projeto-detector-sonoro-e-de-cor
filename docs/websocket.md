@@ -1,4 +1,7 @@
-# Fases 7.1 e 7.2 — conexão e publicação pós-commit
+# Fase 7 — conexão, publicação pós-commit e validação integrada
+
+Status: 7.1, 7.2 e 7.3 implementadas e validadas em software em 2026-11-12;
+475 testes passaram na suíte completa. A Fase 8 não foi iniciada.
 
 Endpoint: `WS /api/v1/ws/events`, na mesma porta do backend. Conexões autenticadas
 recebem os quatro tipos críticos criados por `POST /api/v1/events`, somente após
@@ -148,7 +151,7 @@ banco e não deve ser usada como histórico. Frontend permanece na Fase 8.
 ```powershell
 docker compose config --quiet
 docker compose build backend
-docker compose run --rm -T --no-deps backend python -m pytest -q tests/test_websocket.py tests/test_websocket_transport.py tests/test_websocket_publication.py
+docker compose run --rm -T --no-deps backend python -m pytest -q tests/test_websocket.py tests/test_websocket_transport.py tests/test_websocket_publication.py tests/test_websocket_integration.py
 docker compose run --rm -T --no-deps backend python -m pytest -q
 ```
 
@@ -156,3 +159,43 @@ Testes usam JWTs fictícios e schemas PostgreSQL isolados. Os testes de transpor
 iniciam um Uvicorn temporário em porta livre local, incluindo origem, autenticação,
 expiração, desconexão, tamanho de mensagem e proteção dos logs. Não enviam alertas
 externos, não usam credenciais de usuários reais e não dependem de hardware.
+
+## Reconexão e recuperação por REST
+
+Procedimento para consumidores deste contrato (sem implementar frontend nesta fase):
+
+1. Obter access token válido pelo fluxo REST de autenticação existente.
+2. Abrir o socket com Origin permitido e enviar `authenticate`; aguardar `authenticated`.
+3. Consultar `GET /api/v1/events` com os filtros pertinentes e paginação
+   `limit`/`offset` (limite máximo atual: 200). A resposta é uma lista, não um envelope.
+4. Conciliar notificações recebidas durante a consulta pelo `uuid`/`event_id`,
+   consultando `GET /api/v1/events/{event_id}` quando precisar do registro completo.
+   Notificações não substituem o registro REST nem sua metadata de reconhecimento.
+5. Após desconexão, repetir autenticação e consulta. O servidor não retransmite
+   eventos ocorridos durante a ausência. Fechamento 4401 exige verificar a sessão;
+   1013 indica excesso de fila. Renovação de token ocorre por REST.
+
+Paginação por offset não oferece snapshot atômico sob gravações concorrentes;
+conciliar duplicatas e atualizar novamente quando necessário. Não assumir que
+timestamps de ocorrência ou IDs recebidos no socket representam ordem de commit.
+Esse procedimento não adiciona garantia de entrega durável ao WebSocket.
+
+## Matriz de validação — 7.3
+
+| Critério | Evidência automatizada |
+| --- | --- |
+| JWT access, Origin, expiração, role/atividade e logs seguros | `test_websocket.py`, `test_websocket_transport.py` |
+| Quatro tipos críticos com IDs internos e UTC; dois tipos não transmitidos | `test_websocket_integration.py`, `test_websocket_publication.py` |
+| Publicação após commit, sem emissão em rollback/savepoint | `test_websocket_publication.py` |
+| UUID idempotente inclusive sob concorrência | `test_websocket_publication.py` |
+| Cliente lento isolado, timeout e limpeza de tarefas | `test_websocket_publication.py`, `test_websocket.py` |
+| Evento recebido acessível via REST; reconhecimento não republica | `test_websocket_integration.py` |
+| Reconexão sem replay, histórico REST e novas notificações | `test_websocket_integration.py` |
+| Falha WebSocket preserva um único alerta PENDING; rollback remove evento e alerta | `test_websocket_publication.py` |
+
+Os testes de integração usam PostgreSQL e Uvicorn reais em ambiente isolado.
+Fila cheia e falhas de transporte são induzidas de forma controlada em testes,
+sem alegar ensaio de carga ou garantia contra toda falha futura. Não foram
+validados navegador/frontend, TLS público, execução Python nativa no Windows,
+reinício abrupto do processo sob carga ou hardware. Esses limites não ampliam o
+escopo da Fase 7. Evidências de execução: [testing.md](testing.md).
