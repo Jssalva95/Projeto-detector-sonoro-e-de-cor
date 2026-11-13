@@ -1,10 +1,11 @@
 # Machine Tracker
 
-> **Fase 7.1 — conexão WebSocket e autenticação.** Access JWT na primeira mensagem,
-> origem permitida, expiração e IDs internos coerentes com REST. Contratos e
-> configuração: [docs/websocket.md](docs/websocket.md). Publicação de eventos
-> após commit e broadcast ainda pertencem à parte 7.2; não há frontend novo.
-> Validação atual: 447 testes passaram, incluindo 52 da parte 7.1.
+> **Fase 7.2 — publicação WebSocket após commit.** Eventos críticos novos são
+> distribuídos para conexões autenticadas, com filas limitadas por cliente e
+> proteção contra retransmissão por UUID. Entrega transitória em processo único;
+> reconexão exige atualização por REST. Contratos e configuração:
+> [docs/websocket.md](docs/websocket.md). Não há frontend novo.
+> Validação atual: 466 testes passaram. A parte 7.3 permanece separada.
 
 > **Fase 6.3 — worker e tentativas manuais.** Processamento separado com reserva
 > durável e sem retry automático de resultados incertos. Ativação e limites em

@@ -2,10 +2,11 @@
 
 from collections.abc import Callable, Iterator
 import os
+import logging
 from secrets import compare_digest
 from typing import Annotated
 
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, Request
 from fastapi.security import APIKeyHeader, HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -15,6 +16,8 @@ from app.models import User
 from app.models.enums import Role
 from app.security import AuthConfigurationError, AuthSettings, InvalidCredentials, auth_settings
 from app.services.auth import authenticated_user
+from app.websocket.publication import PENDING_NOTIFICATIONS
+from app.websocket.schemas import EventNotification
 
 bearer = HTTPBearer(auto_error=False)
 device_key = APIKeyHeader(name="X-API-Key", auto_error=False)
@@ -28,12 +31,23 @@ def require_device_key(key: Annotated[str | None, Depends(device_key)]) -> None:
         raise HTTPException(401, "Invalid device credentials")
 
 
-def get_session() -> Iterator[Session]:
+def get_session(request: Request) -> Iterator[Session]:
+    notifications: list[EventNotification] = []
     try:
         with session_scope() as session:
+            session.info[PENDING_NOTIFICATIONS] = notifications
             yield session
     except (SQLAlchemyError, DatabaseConfigurationError):
         raise HTTPException(503, "Database unavailable") from None
+    # session_scope has committed the root transaction and closed the session.
+    # No ORM access or network I/O here; a publication failure cannot undo commit.
+    manager = getattr(request.app.state, 'event_connections', None)
+    if manager is not None:
+        for notification in notifications:
+            try:
+                manager.publish(notification)
+            except Exception:
+                logging.getLogger(__name__).warning('websocket_publication_failed')
 
 
 def get_auth_settings() -> AuthSettings:

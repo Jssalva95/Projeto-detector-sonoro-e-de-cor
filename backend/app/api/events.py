@@ -11,6 +11,7 @@ from app.models.enums import Role
 from app.schemas.domain import EventRead, Identifier
 from app.schemas.events import EventFilters, EventRequest
 from app.services import events
+from app.websocket.publication import stage_notification
 
 router = APIRouter(prefix="/api/v1/events", tags=["Events"])
 SessionDependency = Annotated[Session, Depends(get_session)]
@@ -23,6 +24,8 @@ AcknowledgingUser = Annotated[User, Depends(require_roles(Role.ADMIN, Role.OPERA
              dependencies=[Depends(require_device_key)])
 def create(payload: EventRequest, session: SessionDependency, response: Response) -> EventRead:
     event, created = events.create(session, payload)
+    if created:
+        stage_notification(session, event)
     response.status_code = 201 if created else 200
     return EventRead.model_validate(event)
 

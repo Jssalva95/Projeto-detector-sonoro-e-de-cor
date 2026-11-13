@@ -590,3 +590,55 @@ verificações executadas. O commit permanece a cargo do usuário. Publicação
 pós-commit, broadcast e filas de saída continuam reservados à 7.2. Não houve
 envios externos, mudanças de credenciais, migrations ou validação física nesta
 retomada; somente este registro de testes foi atualizado.
+
+# Validação da Fase 7.2 — 2026-11-12
+
+Escopo: publicação dos quatro tipos críticos após commit da ingestão HTTP,
+distribuição em memória e isolamento de clientes. Nenhum envio externo de alertas.
+
+Comandos executados a partir da raiz do projeto:
+
+```powershell
+docker compose run --rm -T --no-deps --volume ./backend:/app:ro backend python -m pytest -q -p no:cacheprovider tests/test_websocket_publication.py tests/test_websocket.py tests/test_websocket_transport.py
+docker compose run --rm -T --no-deps --volume ./backend:/app:ro backend python -m pytest -q -p no:cacheprovider
+docker compose config --quiet
+docker compose build backend
+docker compose up -d --no-deps --wait backend
+docker compose exec -T backend python -m pip check
+docker compose exec -T backend python -m compileall -q app
+docker compose exec -T backend python -m alembic current
+docker compose exec -T backend python -m alembic check
+docker compose ps
+git diff --check
+git diff
+git status --short
+```
+
+A primeira execução focada passou com 66 testes. Após ampliar a cobertura,
+a suíte completa passou com **466 testes em 114,97s**, sem falhas ou testes
+ignorados. Um aviso de depreciação preexistente do Starlette/AnyIO permanece.
+
+Cobertura acrescentada: visibilidade do evento por outra conexão PostgreSQL
+antes da publicação; ausência de emissão no savepoint, rollback e falha de
+persistência; seis tipos de evento filtrados; replay e conflito de UUID;
+concorrência de retransmissões; falha do publicador sem desfazer commit; cliente
+lento com fila cheia sem bloquear o rápido; limpeza de tarefas; loop encerrado;
+configuração de capacidade inválida. Sockets Uvicorn reais validam broadcast
+para dois clientes, ausência de repetição e usuário desativado bloqueado no envio.
+
+Build, configuração Compose, pip check e compilação Python passaram. Backend,
+PostgreSQL e frontend ficaram `healthy`. Verificação HTTP por Python no container:
+`/health`, `/ready` e `/docs` retornaram 200. A configuração efetiva da fila foi
+conferida como 100. Alembic permanece em `0003_alert_attempts (head)`, sem diferenças
+de schema. Nenhuma migration ou dependência nova nesta subfase.
+
+O `.env` recebeu somente o limite aprovado `WS_CLIENT_QUEUE_SIZE=100` e permanece
+ignorado pelo Git. Testes usaram schemas privados com limpeza e credenciais
+fictícias; não enviaram e-mail/Telegram e não ativaram o worker. Hardware não se
+aplica a esta validação. Python nativo no Windows não foi executado: validação
+realizada no Docker a partir do PowerShell.
+
+Limites documentados: entrega transitória, sem replay ou ordenação global; REST
+é necessário na reconexão. A Fase 7.3 não foi iniciada. Na inspeção do commit
+`75bfdb0`, arquivos de código/testes/documentação da 7.1 ainda estavam untracked;
+devem ser incluídos no próximo commit junto das alterações da 7.2.

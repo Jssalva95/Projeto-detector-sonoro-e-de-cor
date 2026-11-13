@@ -121,4 +121,13 @@ variáveis e executar esse comando em `backend/`. Não há nova migration.
 
 Após build/testes, atualizar somente a API com
 `docker compose up -d --no-deps --wait backend`. Isso não ativa o perfil alerts.
-O WebSocket compartilha a porta da API e ainda não publica eventos nesta subfase.
+O WebSocket compartilha a porta da API.
+
+## Publicação WebSocket — Fase 7.2
+
+Preencher também `WS_CLIENT_QUEUE_SIZE`, inteiro positivo obrigatório e sem default.
+O valor local aprovado é `100` mensagens por conexão. Recriar somente o backend
+após build e testes, usando o comando acima. Não há nova dependência ou migration.
+A API publica eventos críticos após commit, com filas por cliente e entrega
+transitória em um único processo. Reconexão exige atualização por REST; não executar
+múltiplos workers/réplicas esperando broadcast compartilhado. Veja [websocket.md](websocket.md).
