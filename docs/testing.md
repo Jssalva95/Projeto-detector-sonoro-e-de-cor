@@ -498,3 +498,95 @@ de produção. O recebimento anterior valida o envio direto de e-mail antes da
 correção de diagnóstico; a versão corrigida foi validada com transportes simulados.
 Esta conclusão não equivale a garantir ausência de falhas futuras nem autoriza
 envios externos adicionais. A Fase 7 não foi iniciada.
+
+## Fase 7.1 — conexão e autenticação WebSocket em 2026-11-07
+
+A observação anterior sobre a Fase 7 é histórica. O usuário autorizou somente
+a parte 7.1 e confirmou `machine_id` como ID interno, coerente com REST.
+O endpoint `/api/v1/ws/events` autentica o access JWT na primeira mensagem,
+valida Origin, usuário ativo e role atual, confirma a autenticação e encerra
+na expiração. O contrato de eventos está definido, mas ainda não existe
+publicação de eventos ou broadcast. Nenhuma migration foi adicionada.
+
+Foi verificado que a instalação mínima do Uvicorn não possuía `websockets` nem
+`wsproto`. Adicionado `websockets==17.4`, com importação compatível e transporte
+real testado. O entrypoint Docker/Windows `python -m app.server` aplica o limite
+de mensagem e protege logs de protocolo. As quatro configurações WS aprovadas
+foram acrescentadas ao `.env` local; credenciais foram preservadas e o arquivo
+continua ignorado pelo Git. Os campos em `.env.example` não têm defaults.
+
+Validações específicas executadas:
+
+- `docker compose run --rm -T --no-deps --volume ./backend:/app:ro backend python -m pytest -q -p no:cacheprovider tests/test_websocket.py tests/test_websocket_transport.py`:
+  **52 testes passaram**, incluindo 4 com Uvicorn real em portas locais livres,
+  JWTs fictícios e schemas PostgreSQL isolados. O código foi montado somente
+  para leitura durante essa validação.
+- Cobertura: roles de leitura, access/refresh, usuário inativo/excluído,
+  assinatura/expiração, origem ausente ou inválida, recusa de query,
+  mensagens inválidas/binárias/grandes, timeout de autenticação/envio,
+  expiração ociosa e durante envio bloqueado, revalidação antes de enviar,
+  conexões independentes, sanitização dos logs e contrato de IDs/timestamps.
+- A revisão identificou e corrigiu a preservação da tupla usada pelo
+  AccessFormatter do Uvicorn: o filtro sanitiza o caminho sem quebrar os logs
+  HTTP. Regressão específica e teste real verificam ausência de logging errors.
+- `docker compose config --quiet` e `docker compose build backend`: aprovados.
+- Script Python no container validou os valores aprovados: autenticação 10s,
+  envio 5s, tamanho 4096 bytes e origens localhost/127.0.0.1 na porta 5173.
+  Executou `python -m pip check`, `python -m compileall -q app tests alembic`,
+  `python -m alembic current` e `python -m alembic check`: sem erros,
+  migration 0003 no head e sem divergências de schema.
+
+Validação final e aplicação local da 7.1:
+
+- `docker compose run --rm -T --no-deps backend python -m pytest -q`:
+  **447 testes passaram**, nenhum ignorado, incluindo os 52 da 7.1. Permanece
+  um aviso preexistente de depreciação Starlette/AnyIO. As execuções intermediárias
+  passaram com 445 e 446 testes antes das duas últimas regressões adicionadas.
+- `docker compose up -d --no-deps --wait backend`: imagem validada aplicada;
+  backend healthy, iniciado por `python -m app.server`.
+- Script via `docker compose exec -T backend python -B -`: `/health`, `/ready`
+  e `/docs` retornaram 200; conexão WebSocket real no container aceitou o handshake
+  com origem permitida e recusou token fictício com código 4401.
+- `docker compose ps --all`: backend, PostgreSQL e frontend healthy. Volume e
+  credenciais preservados; perfil de alertas não ativado.
+- `git diff --check`, `git diff`, `git status --short` e `git check-ignore .env`:
+  revisados; sem erros de whitespace, `.env` ignorado e nenhum commit criado.
+
+Contrato, códigos de encerramento e limites: [websocket.md](websocket.md).
+Não houve envio externo nem uso de hardware. Execução nativa do Python no Windows
+não foi validada; os comandos Docker foram executados pelo PowerShell no Windows.
+A publicação pós-commit e a fila de saída pertencem à 7.2 e não foram implementadas.
+
+## Retomada e revalidação da Fase 7.1 — 2026-11-12
+
+A interrupção ocorreu após implementação, testes e aplicação local da 7.1,
+antes do relatório final ao usuário. Código, contratos, documentação e testes
+estavam preservados; o último commit continua sendo 7f1bbae (Fase 6.3).
+Nesta retomada não foi necessário alterar código nem recriar containers.
+
+Verificações realmente executadas:
+
+- `git status --short`, `git log -3 --oneline` e revisão do diff: mudanças da
+  7.1 presentes e ainda sem commit; nenhuma implementação da 7.2 adicionada.
+- `docker compose config --quiet`: configuração válida.
+- `docker compose ps --all`: backend, frontend e PostgreSQL healthy.
+- `docker compose exec -T backend python -m pip check`: sem incompatibilidades.
+- Comparação SHA-256 entre arquivos locais e container ativo: **75 arquivos Python
+  de app/tests conferidos, nenhuma divergência**. Não foi necessário novo build;
+  permanece a imagem validada e aplicada na etapa anterior.
+- `docker compose run --rm -T --no-deps --volume ./backend:/app:ro backend python -m pytest -q -p no:cacheprovider`:
+  **447 testes passaram**, nenhum ignorado, incluindo 52 da 7.1. Permanece somente
+  o aviso preexistente Starlette/AnyIO. Fontes locais montadas somente para leitura.
+- Script via `docker compose exec -T backend python -B -`: confirmou as quatro
+  configurações WS aprovadas, HTTP 200 em `/health`, `/ready` e `/docs`, handshake
+  WebSocket e recusa de token fictício com código 4401. Também executou
+  `python -m alembic current` e `python -m alembic check`: 0003 no head,
+  sem divergências de schema.
+- `git diff --check`, revisão de diff/status e confirmação de `.env` ignorado:
+  sem erros de whitespace e alterações anteriores preservadas.
+
+Não foram identificadas pendências funcionais bloqueantes no escopo da 7.1 nas
+verificações executadas. O commit permanece a cargo do usuário. Publicação
+pós-commit, broadcast e filas de saída continuam reservados à 7.2. Não houve
+envios externos, mudanças de credenciais, migrations ou validação física nesta
+retomada; somente este registro de testes foi atualizado.

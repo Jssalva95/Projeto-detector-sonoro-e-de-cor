@@ -105,3 +105,20 @@ foi o valor aprovado para este ambiente). A migration é aditiva, sem remover da
 O worker não inicia no `docker compose up` comum. Consulte [alert-worker.md](alert-worker.md)
 para ativação explícita do perfil, teste sem envio e administração manual.
 Não ativar canais reais em smoke tests: o worker pode consumir filas existentes.
+
+## WebSocket — Fase 7.1
+
+Antes de recriar o backend, preencher WS_AUTH_TIMEOUT_SECONDS,
+WS_SEND_TIMEOUT_SECONDS, WS_MAX_MESSAGE_BYTES e WS_ALLOWED_ORIGINS conforme
+[websocket.md](websocket.md). São obrigatórias e não têm defaults. No ambiente
+local, foram aprovados 10s, 5s, 4096 bytes e as origens localhost/127.0.0.1 na
+porta 5173. O `.env.example` mantém esses campos sem valores operacionais.
+
+O Dockerfile inicia `python -m app.server`, preservando a porta BACKEND_PORT e
+um único processo. Esse entrypoint configura transporte WebSocket, limite de
+mensagem e filtros de logs; para execução direta no Windows, exportar as mesmas
+variáveis e executar esse comando em `backend/`. Não há nova migration.
+
+Após build/testes, atualizar somente a API com
+`docker compose up -d --no-deps --wait backend`. Isso não ativa o perfil alerts.
+O WebSocket compartilha a porta da API e ainda não publica eventos nesta subfase.

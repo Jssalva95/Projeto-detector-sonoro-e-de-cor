@@ -7,4 +7,4 @@ COPY app ./app
 COPY tests ./tests
 COPY alembic.ini ./
 COPY alembic ./alembic
-CMD ["sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port \"$BACKEND_PORT\""]
+CMD ["python", "-m", "app.server"]

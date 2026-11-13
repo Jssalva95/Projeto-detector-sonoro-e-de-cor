@@ -81,6 +81,11 @@ def issue_token(user_id: int, token_type: TokenType, settings: AuthSettings) -> 
 
 
 def token_subject(token: str, expected_type: TokenType, settings: AuthSettings) -> int:
+    return token_identity(token, expected_type, settings)[0]
+
+
+def token_identity(token: str, expected_type: TokenType, settings: AuthSettings) -> tuple[int, int]:
+    """Validated internal user ID and expiry; never trust unverified claims."""
     try:
         payload = jwt.decode(
             token, settings.secret, algorithms=[settings.algorithm],
@@ -96,6 +101,6 @@ def token_subject(token: str, expected_type: TokenType, settings: AuthSettings) 
         if (type(payload["iat"]) is not int or type(payload["exp"]) is not int
                 or payload["exp"] <= payload["iat"]):
             raise InvalidCredentials
-        return user_id
+        return user_id, payload['exp']
     except (jwt.InvalidTokenError, ValueError, TypeError, KeyError):
         raise InvalidCredentials("Invalid credentials") from None
