@@ -174,3 +174,26 @@ Executar os comandos em sequência e parar se algum falhar. Conferir `/health`,
 access JWT válido, sem registrar tokens ou dados retornados em logs de diagnóstico.
 Os testes usam schemas privados. Não iniciar o perfil `alerts` para validar esta
 entrega; não é necessário envio externo, alteração de credencial ou recriação do volume.
+
+## Administração — preparação do frontend, etapa 4
+
+Sem migration nova: permanece 0004. Acrescentar ALERT_TEST_COOLDOWN_SECONDS ao
+ambiente explícito (valor local aprovado: 300), conforme .env.example. É necessário
+para /settings com canais habilitados; não inicia testes de envio.
+
+```powershell
+docker compose config --quiet
+docker compose build backend
+docker compose run --rm -T --no-deps backend python -m pytest -q --tb=short
+docker compose up -d --no-deps --wait backend
+docker compose exec -T backend python -m alembic check
+docker compose ps
+```
+
+Parar a sequência se houver falha. Consultar com ADMIN ativo as rotas de
+[alert-administration.md](alert-administration.md); não criar destinatários reais
+ou iniciar o perfil alerts como smoke test. CLI/API/workers que participam da fila
+devem usar a mesma imagem atualizada para coordenar os locks de destinatário.
+Se houver worker real em operação, sua atualização deve preservar as reservas
+duráveis e seguir a parada graciosa descrita em [alert-worker.md](alert-worker.md).
+Não reabrir tentativas iniciadas. Esta entrega local não iniciou workers nem enviou mensagens.

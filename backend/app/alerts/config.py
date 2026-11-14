@@ -12,6 +12,17 @@ class AlertConfigurationError(ValueError):
     pass
 
 
+def test_cooldown() -> float:
+    """Approved explicit setting; no test-send queue is activated by reading it."""
+    try:
+        seconds = float(os.environ.get('ALERT_TEST_COOLDOWN_SECONDS', ''))
+        if not math.isfinite(seconds) or seconds < 0:
+            raise ValueError
+    except ValueError:
+        raise AlertConfigurationError('ALERT_TEST_COOLDOWN_SECONDS must be finite and nonnegative') from None
+    return seconds
+
+
 def poll_interval() -> float:
     try:
         value = float(os.environ.get('ALERT_POLL_INTERVAL_SECONDS', ''))

@@ -13,6 +13,8 @@ from app.api.readings import router as readings_router
 from app.api.events import router as events_router
 from app.api.websocket import router as websocket_router
 from app.api.dashboard import router as dashboard_router
+from app.api.alert_admin import router as alert_admin_router
+from app.services.alert_admin import AlertAdminError, AlertAdminNotFound, AlertAdminConflict
 from app.services.equipment import EquipmentError, NotFound, InactiveDevice
 from app.alerts.config import AlertConfigurationError
 
@@ -25,6 +27,13 @@ app.include_router(readings_router)
 app.include_router(events_router)
 app.include_router(websocket_router)
 app.include_router(dashboard_router)
+app.include_router(alert_admin_router)
+
+
+@app.exception_handler(AlertAdminError)
+async def alert_admin_error(request: Request, error: AlertAdminError) -> JSONResponse:
+    status_code = 404 if isinstance(error, AlertAdminNotFound) else 409 if isinstance(error, AlertAdminConflict) else 422
+    return JSONResponse(status_code=status_code, content={'detail': str(error)}, headers={'Cache-Control': 'no-store'})
 
 
 @app.exception_handler(AlertConfigurationError)
@@ -40,6 +49,10 @@ async def equipment_error(request: Request, error: EquipmentError) -> JSONRespon
 
 @app.exception_handler(RequestValidationError)
 async def safe_auth_validation(request: Request, error: RequestValidationError) -> Response:
+    if request.url.path.startswith(('/api/v1/alert-recipients', '/api/v1/alerts', '/api/v1/settings')):
+        # Recipient destinations and unexpected input must not be echoed.
+        return JSONResponse(status_code=422, content={'detail': 'Invalid administrative input'},
+                            headers={'Cache-Control': 'no-store'})
     if request.url.path.startswith("/api/v1/auth/"):
         # FastAPI's default errors echo input, including passwords and tokens.
         return JSONResponse(status_code=422, content={"detail": "Invalid authentication payload"})

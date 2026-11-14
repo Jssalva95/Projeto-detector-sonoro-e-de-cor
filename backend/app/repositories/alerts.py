@@ -18,7 +18,7 @@ def latest_fault_transition(session: Session, machine_id: int) -> str | None:
 def active_recipients(session: Session, channels: tuple[str, ...]) -> list[AlertRecipient]:
     return list(session.scalars(select(AlertRecipient).where(
         AlertRecipient.is_active.is_(True), AlertRecipient.channel.in_(channels),
-    ).order_by(AlertRecipient.id)))
+    ).order_by(AlertRecipient.id).with_for_update().execution_options(populate_existing=True)))
 
 
 def in_cooldown(session: Session, machine_id: int, recipient: AlertRecipient,

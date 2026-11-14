@@ -245,6 +245,8 @@ def test_production_openapi_only_approved_endpoints():
         "/api/v1/events", "/api/v1/events/{id}", "/api/v1/events/{id}/acknowledge",
         "/api/v1/dashboard/summary", "/api/v1/dashboard/events-by-period",
         "/api/v1/dashboard/machine-status",
+        "/api/v1/alert-recipients", "/api/v1/alert-recipients/{id}",
+        "/api/v1/alerts", "/api/v1/alerts/{id}", "/api/v1/settings",
     }
     assert schema["paths"]["/api/v1/auth/me"]["get"]["security"] == [{"HTTPBearer": []}]
     assert all("password_hash" not in model.get("properties", {})

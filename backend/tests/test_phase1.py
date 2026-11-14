@@ -79,6 +79,8 @@ def test_docs_and_health_contract() -> None:
             "/api/v1/events", "/api/v1/events/{id}", "/api/v1/events/{id}/acknowledge",
             "/api/v1/dashboard/summary", "/api/v1/dashboard/events-by-period",
             "/api/v1/dashboard/machine-status",
+            "/api/v1/alert-recipients", "/api/v1/alert-recipients/{id}",
+            "/api/v1/alerts", "/api/v1/alerts/{id}", "/api/v1/settings",
         }
         assert schema["components"]["schemas"]["HealthResponse"]["properties"]["status"]["const"] == "ok"
 

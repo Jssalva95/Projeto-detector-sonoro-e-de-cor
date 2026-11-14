@@ -7,8 +7,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.alerts.message import render_message
-from app.models import Alert, AlertRecipient, Event, Machine
+from app.models import Alert, Event, Machine
 from app.repositories.alerts import database_now
+from app.repositories.alert_admin import recipient as locked_recipient
 
 
 @dataclass(frozen=True)
@@ -31,7 +32,7 @@ def reserve(session: Session, channels: tuple[str, ...]) -> tuple[bool, Delivery
     if row is None:
         return False, None
     row.attempt_started_at = database_now(session)
-    recipient = session.get(AlertRecipient, row.recipient_id)
+    recipient = locked_recipient(session, row.recipient_id, lock=True)
     event = session.get(Event, row.event_id)
     error = None
     if recipient is None or not recipient.is_active:

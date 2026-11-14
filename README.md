@@ -13,11 +13,14 @@ detalham estado operacional, dashboard, administração de alertas e escopo de t
 A etapa 2 implementa o estado operacional calculado e a proteção de contexto dos
 dispositivos. A etapa 3 acrescenta os três [endpoints de dashboard](docs/dashboard.md),
 com resumo operacional, série temporal UTC e paginação de máquinas com evidências.
-Administração de alertas aguarda suas etapas; não há frontend novo.
+Etapa 4: [administração de destinatários, consultas de alertas e configurações](docs/alert-administration.md)
+exclusivas de ADMIN. A fila de testes de envio permanece na etapa 5; não há frontend novo.
 Validação da etapa 2: 493 testes passaram; migration `0004_device_status_context`
 aplicada. Consulte [implantação](docs/deployment.md) e [testes](docs/testing.md).
 Validação da etapa 3: 554 testes passaram; os três GETs autenticados responderam
 HTTP 200 no backend local, sem nova migration ou dependência.
+Validação da etapa 4: 668 testes passaram; consultas administrativas e /settings
+responderam HTTP 200. Banco e tentativas preservados; sem envio externo.
 
 > **Fase 6.3 — worker e tentativas manuais.** Processamento separado com reserva
 > durável e sem retry automático de resultados incertos. Ativação e limites em

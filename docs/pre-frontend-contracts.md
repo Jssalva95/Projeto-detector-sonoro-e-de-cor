@@ -6,7 +6,7 @@ Data: 2026-11-14. Base inspecionada: `405e508`.
 inclui a coluna de contexto, sua inicialização, prioridade de estados, contratos
 de consultas, identidade dos destinatários, tabela de testes e cooldown de 300s.
 Aprovação de contrato não significa implementação concluída. A execução permanece
-dividida nas etapas 2 a 5. Etapas 2 e 3 implementadas; entregas posteriores
+dividida nas etapas 2 a 5. Etapas 2, 3 e 4 implementadas; entregas posteriores
 permanecem separadas. Contratos da API disponível em [dashboard.md](dashboard.md).
 
 ## 1. Evidências e limites já estabelecidos
@@ -328,7 +328,7 @@ credenciais nem que um worker já reiniciou com esses valores. Sem endpoint de e
 | 1 (concluída) | Documento de contratos, confirmado integralmente pelo usuário |
 | 2 (concluída) | Cálculo operacional e marcador de contexto aprovado; testes/migration |
 | 3 (concluída) | Três endpoints de dashboard e testes de agregações; 554 testes passaram |
-| 4 | API administrativa, regras compartilhadas com CLI e consulta segura /settings |
+| 4 (concluída) | API administrativa, regras compartilhadas com CLI e consulta segura /settings; 668 testes passaram |
 | 5 | Migration/fila de testes, worker, reconciliação e regressão integrada |
 
 As telas permanecem na Fase 8. Não renumerar fases anteriores nem marcar como
@@ -349,5 +349,6 @@ implementados os requisitos novos. A matriz abaixo orienta aceite, não relata t
 
 P1–P8 foram confirmados integralmente. Mudanças posteriores nesse contrato
 precisam ser identificadas e discutidas; não aplicar decisões diferentes silenciosamente.
-Endpoints de dashboard estão implementados na etapa 3. Administração web e fila
-de testes aguardam suas etapas 4 e 5.
+Dashboard implementado na etapa 3. Administração web e /settings implementados
+na etapa 4, descritos em [alert-administration.md](alert-administration.md).
+Fila de testes, seu guard de identidade e processamento permanecem na etapa 5.

@@ -858,3 +858,100 @@ REST anteriores preservados. Não foi iniciado worker ou feito envio externo.
 Não houve mudança de frontend, validação física ou ensaio de carga; execução em
 Docker via PowerShell, não em Python nativo Windows. Nenhuma pendência funcional
 conhecida da etapa 3. Alterações deixadas sem commit; próxima entrega é a etapa 4.
+
+## Preparação do frontend — etapa 4 — 2026-11-14
+
+Base: commit `c77e5a9`, árvore inicialmente limpa. AGENTS.md, contrato P4/P7,
+configuração, CLI, enqueue, reserva, retry e testes existentes foram inspecionados.
+Os 61 testes de dashboard do commit anterior passaram novamente. Backend,
+PostgreSQL e frontend estavam healthy; worker não estava em execução no Compose.
+
+Implementação: [administração de destinatários e consultas](alert-administration.md),
+schemas/repository/service/router próprios e regras de criação/ativação/edição
+compartilhadas com CLI. Bloqueios coordenados com os writers existentes, descritos
+no [ADR 0011](decisions/0011-recipient-administration.md). Sem nova tabela ou migration.
+Novo ALERT_TEST_COOLDOWN_SECONDS no Compose/.env.example; acrescentado 300 ao .env
+local, conforme aprovação, sem alterar credenciais. `git check-ignore .env`
+confirmou que o arquivo continua ignorado.
+
+Cobertura nova:
+
+- sete operações protegidas contra OPERATOR/VIEWER, usuário inativo, token
+  expirado/refresh, chave de dispositivo e ausência de credencial; role atual no banco;
+- criação sem seeds/envio, duplicatas com IDs independentes, patch parcial,
+  null/inválidos/controles rejeitados sem ecoar destino ou payload;
+- identidade bloqueada após tentativa PENDING/FAILED/SENT, preservação do histórico,
+  edição de nome/atividade e canais SMS/WHATSAPP legados somente consultados/desativados;
+- filtros, ordenação, paginação, total com página vazia, máquina histórica,
+  códigos de erro sanitizados sem reescrever registro legado e erros 503 de banco;
+- /settings com allowlist exata, canais desabilitados com null, configuração ativa
+  inválida com 503, ausência de segredos nas respostas/logs e sem autenticação externa;
+- concorrência real em schemas privados: edição antes/depois de enqueue,
+  desativação antes da reserva/retry, recarga de objetos ORM em cache e envio
+  simulado não cancelado por desativação posterior ao commit da reserva.
+
+Comandos executados na revisão e validação:
+
+```powershell
+git status --short
+git log -2 --oneline
+docker compose ps
+docker compose run --rm -T --no-deps backend python -m pytest -q --tb=short tests/test_dashboard.py
+docker compose run --rm -T --no-deps --volume ./backend:/app:ro backend python -m pytest -q --tb=short -p no:cacheprovider tests/test_alert_admin_api.py tests/test_alert_delivery.py tests/test_alert_queue.py
+docker compose run --rm -T --no-deps --volume ./backend:/app:ro backend python -m pytest -q --tb=short -p no:cacheprovider tests/test_alert_admin_concurrency.py
+docker compose run --rm -T --no-deps --volume ./backend:/app:ro backend python -m pytest -q --tb=short -p no:cacheprovider -W error::pydantic.warnings.UnsupportedFieldAttributeWarning tests/test_alert_admin_api.py::test_recipient_crud_duplicates_partial_updates_and_cli
+docker compose run --rm -T --no-deps --volume ./backend:/app:ro backend python -m pytest -q --tb=short -p no:cacheprovider -W error::pydantic.warnings.UnsupportedFieldAttributeWarning tests/test_alert_admin_api.py tests/test_alert_admin_concurrency.py
+docker compose config --quiet
+docker compose build backend
+docker compose run --rm -T --no-deps backend python -m pytest -q --tb=short
+docker compose run --rm -T --no-deps backend python -m alembic check
+docker compose run --rm -T --no-deps backend python -c "import compileall, subprocess; assert compileall.compile_dir('app', quiet=1); subprocess.run(['python', '-m', 'pip', 'check'], check=True); print('Python compilation: OK')"
+git check-ignore .env
+git diff --check
+git diff
+git status --short
+```
+
+Resultados iniciais: 172 testes administrativos/fila/delivery e sete de concorrência
+passaram. Um aviso novo de Field(repr=False) foi reproduzido como erro no teste
+diagnóstico: FastAPI recria adaptadores dos campos de entrada e Pydantic rejeita
+esse metadado no contexto de adaptação. Removido o metadado dos dois campos novos,
+mantendo sanitização de erros e ausência de logs de payload; nenhuma dependência
+foi trocada. Após acrescentar dois testes de falha durante consulta, os **114 testes
+novos passaram** com esse aviso tratado como erro. Restou somente a depreciação
+Starlette/AnyIO já existente. Build, compilação, pip check e alembic check passaram.
+
+Regressão completa na imagem final: **668 testes passaram em 144,62s**, nenhum
+ignorado. Um aviso preexistente Starlette/AnyIO; nenhum aviso novo de schema.
+
+Após os testes foram executados:
+
+```powershell
+docker compose up -d --no-deps --wait backend
+docker compose exec -T backend python -m alembic current
+docker compose ps
+git diff --check
+git diff
+git status --short
+```
+
+Somente backend foi recriado. Backend/PostgreSQL/frontend ficaram healthy;
+migration `0004_device_status_context (head)` mantida. Um script Python enviado por
+here-string PowerShell a `docker compose exec -T backend python -` consultou
+`/health`, `/ready`, `/docs`, `/openapi.json`, `/api/v1/alert-recipients`,
+`/api/v1/alerts` e `/api/v1/settings`: todos HTTP 200. As rotas administrativas
+usaram access JWT de ADMIN ativo existente, mantido apenas em memória; respostas
+validadas por schema, sem imprimir tokens, destinos ou registros. As listagens
+locais estavam vazias; detalhes por ID, POST e PATCH foram validados nos schemas
+isolados, sem inserir destinatários ou tentativas no banco real.
+
+Critérios da etapa 4 atendidos: rotas somente ADMIN, contratos/paginação/filtros,
+identidade vinculada a tentativas, CLI compartilhada, revalidação após locks,
+reserva durável preservada, respostas de erro sanitizadas e /settings com allowlist.
+O novo cooldown usa a mesma validação numérica do cooldown real (finito >= 0),
+documentada em alert-administration.md; o ambiente local usa 300, nunca default.
+Sem dependências novas, migrations, frontend, worker iniciado ou envio externo.
+Validação em Docker via PowerShell; não foi feito ensaio de carga nem validação
+física/Python nativo Windows. Não há pendência funcional conhecida da etapa 4.
+Alterações sem commit. Fila de testes e sua proteção de identidade permanecem na
+etapa 5 e não são pendências desta entrega.

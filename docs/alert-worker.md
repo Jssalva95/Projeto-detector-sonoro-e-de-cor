@@ -1,5 +1,10 @@
 # Fase 6.3 — processamento e administração da fila
 
+Atualização da preparação do frontend, etapa 4: a [API administrativa](alert-administration.md)
+compartilha as regras de destinatário com a CLI. Reserva e retry agora bloqueiam
+e recarregam o destinatário antes de verificar elegibilidade. Os estados e a
+ausência de retry automático descritos abaixo permanecem inalterados.
+
 O worker é separado da API, mas usa a mesma imagem Docker. Consome a fila da
 [Fase 6.2](alert-queue.md) usando os [providers da Fase 6.1](providers.md).
 Não há broker, scheduler externo, novas dependências, WhatsApp, SMS ou WebSocket.
