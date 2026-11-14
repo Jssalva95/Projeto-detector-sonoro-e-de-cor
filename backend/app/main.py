@@ -12,6 +12,7 @@ from app.api.devices import router as devices_router
 from app.api.readings import router as readings_router
 from app.api.events import router as events_router
 from app.api.websocket import router as websocket_router
+from app.api.dashboard import router as dashboard_router
 from app.services.equipment import EquipmentError, NotFound, InactiveDevice
 from app.alerts.config import AlertConfigurationError
 
@@ -23,6 +24,7 @@ app.include_router(devices_router)
 app.include_router(readings_router)
 app.include_router(events_router)
 app.include_router(websocket_router)
+app.include_router(dashboard_router)
 
 
 @app.exception_handler(AlertConfigurationError)
@@ -47,7 +49,8 @@ async def safe_auth_validation(request: Request, error: RequestValidationError) 
         # Numeric JSON overflow (e.g. 1e309) becomes infinity in the parser.
         # Do not echo that non-JSON value in the validation error response.
         return JSONResponse(status_code=422, content={"detail": "Reading numbers must be finite"})
-    if request.url.path == "/api/v1/events" or request.url.path.startswith("/api/v1/events/"):
+    if (request.url.path == "/api/v1/events" or request.url.path.startswith("/api/v1/events/")
+            or request.url.path.startswith("/api/v1/dashboard/")):
         # Input and ctx can contain infinity or exception objects. Return only
         # diagnostic metadata, independent of the validation error category.
         details = [{key: item[key] for key in ("loc", "type", "msg")} for item in error.errors()]

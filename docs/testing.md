@@ -766,3 +766,95 @@ adicionadas dependências, variáveis, rotas de dashboard ou mudanças de fronte
 Worker não iniciado, nenhum envio externo ou validação física. Testes executados
 em Docker via PowerShell, não em Python nativo Windows. Sem pendência conhecida
 da etapa 2; os endpoints ficam para a etapa 3.
+
+## Preparação do frontend — etapa 3 — 2026-11-14
+
+Base verificada: commit `1553375`, com árvore de trabalho inicialmente limpa.
+Revisados marcador de contexto, bloqueios, migration 0004, consulta operacional e
+contratos P1–P8. Os 18 testes da etapa 2 passaram novamente e o banco local já
+estava em `0004_device_status_context (head)`, com backend/PostgreSQL healthy.
+
+Implementados os três endpoints de [dashboard](dashboard.md), mantendo contratos
+anteriores. Arquivos novos: `app/api/dashboard.py`, `app/schemas/dashboard.py`,
+`app/repositories/dashboard.py`, `app/services/dashboard.py` e
+`tests/test_dashboard.py`. Reutilizadas a consulta de evidências e a montagem dos
+estados da etapa 2. Registro das rotas e validação sanitizada adicionados à aplicação;
+listas exatas de rotas aprovadas atualizadas em `test_phase1.py` e `test_auth.py`.
+
+Cobertura nova, em PostgreSQL com schemas privados:
+
+- ADMIN/OPERATOR/VIEWER ativos, role atual, recusa de refresh, token expirado,
+  usuário desativado, chave de dispositivo e requisição sem credencial;
+- resumo vazio, cinco categorias cuja soma é total_machines, paridade das 36
+  combinações de estado, dispositivos múltiplos/inativos, filtro antes da página,
+  offset além do fim e IDs válidos sem correspondência;
+- janela crítica exata [as_of−24h,as_of), eventos reconhecidos, tipos fora do
+  WebSocket, exclusão de datas futuras dessa janela;
+- buckets hora/dia em UTC, offsets de timezone, extremidades parciais, contagem
+  em fronteiras sem duplicação, zeros, filtros, datas futuras explícitas, 200
+  buckets aceitos e 201 recusados, datas extremas sem overflow;
+- erros 422 e limites de IDs/paginação, 503 sanitizado em falha de conexão/consulta;
+- uma instrução de leitura por resposta; commit real por outra conexão entre
+  execução e montagem mantém consistentes resumo, total/itens e série temporal.
+
+Comandos de revisão e testes executados:
+
+```powershell
+git status --short
+git log -3 --oneline
+git show --stat --oneline HEAD
+docker compose ps
+docker compose exec -T backend python -m alembic current
+docker compose run --rm -T --no-deps backend python -m pytest -q tests/test_operational.py tests/test_operational_concurrency.py
+docker compose run --rm -T --no-deps --volume ./backend:/app:ro backend python -m pytest -q -p no:cacheprovider tests/test_dashboard.py tests/test_operational.py tests/test_phase1.py
+docker compose run --rm -T --no-deps --volume ./backend:/app:ro backend python -m pytest -q --tb=short -p no:cacheprovider tests/test_dashboard.py tests/test_operational.py tests/test_phase1.py
+docker compose build backend
+docker compose run --rm -T --no-deps backend python -m pytest -q --tb=short
+git diff --check
+git diff
+git status --short
+```
+
+A primeira execução focada teve 75 sucessos e três erros na fixture nova de JWT
+expirado: ela passava um argumento inexistente ao emissor de tokens. Corrigida
+somente a fixture, gerando JWT expirado com a biblioteca já existente; acrescentados
+três testes de commit concorrente. Resultado focado: **81 passaram**.
+A primeira regressão completa teve 553 sucessos e uma falha: uma segunda lista
+exata de endpoints aprovados, em test_auth.py, ainda não incluía as rotas novas.
+A lista foi atualizada explicitamente, preservando a igualdade exata e as asserções
+de segurança; nenhuma validação foi removida ou relaxada.
+
+Após reconstruir a imagem final, a regressão completa passou: **554 testes em
+113,87s**, nenhum ignorado. Permanece apenas o aviso preexistente de depreciação
+Starlette/AnyIO. Não foram adicionadas dependências, variáveis ou migrations.
+
+Validações finais executadas:
+
+```powershell
+docker compose run --rm -T --no-deps backend python -m alembic check
+docker compose run --rm -T --no-deps backend python -c "import compileall, subprocess; assert compileall.compile_dir('app', quiet=1); subprocess.run(['python', '-m', 'pip', 'check'], check=True); print('Python compilation: OK')"
+docker compose up -d --no-deps --wait backend
+docker compose exec -T backend python -m alembic current
+docker compose ps
+git diff --check
+git diff
+git status --short
+```
+
+Build, compilação e pip check passaram. Alembic check não encontrou operações
+pendentes; versão 0004 mantida. Backend atualizado com `--no-deps --wait` ficou
+healthy; PostgreSQL e frontend também healthy. Um script via here-string PowerShell
+para `docker compose exec -T backend python -` executou GETs reais em `/health`,
+`/ready`, `/docs`, `/openapi.json` e nas três rotas de dashboard: todos HTTP 200.
+Nas rotas protegidas, o script usou access JWT temporário de usuário ativo existente,
+somente em memória, e validou os schemas de resposta e a soma dos contadores.
+Nenhum token, credencial ou registro de domínio foi exibido. O teste foi somente
+leitura, sem criar usuários, eventos, alertas ou dados fictícios no banco local.
+
+Critérios P3 atendidos: três rotas autenticadas; mesmo contrato de estado entre
+resumo e listagem; snapshot por resposta; as_of UTC; janela crítica e buckets
+semiabertos; filtros/paginação; zeros reais e erro explícito de banco. Contratos
+REST anteriores preservados. Não foi iniciado worker ou feito envio externo.
+Não houve mudança de frontend, validação física ou ensaio de carga; execução em
+Docker via PowerShell, não em Python nativo Windows. Nenhuma pendência funcional
+conhecida da etapa 3. Alterações deixadas sem commit; próxima entrega é a etapa 4.

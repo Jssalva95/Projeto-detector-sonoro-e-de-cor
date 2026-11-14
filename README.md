@@ -9,11 +9,15 @@
 > reconexão e isolamento entre publicação WebSocket e fila de alertas.
 
 Preparação da Fase 8: os [contratos aprovados](docs/pre-frontend-contracts.md)
-detalha estado operacional, dashboard, administração de alertas e escopo de telas.
+detalham estado operacional, dashboard, administração de alertas e escopo de telas.
 A etapa 2 implementa o estado operacional calculado e a proteção de contexto dos
-dispositivos. Endpoints de dashboard e administração de alertas aguardam suas etapas.
+dispositivos. A etapa 3 acrescenta os três [endpoints de dashboard](docs/dashboard.md),
+com resumo operacional, série temporal UTC e paginação de máquinas com evidências.
+Administração de alertas aguarda suas etapas; não há frontend novo.
 Validação da etapa 2: 493 testes passaram; migration `0004_device_status_context`
 aplicada. Consulte [implantação](docs/deployment.md) e [testes](docs/testing.md).
+Validação da etapa 3: 554 testes passaram; os três GETs autenticados responderam
+HTTP 200 no backend local, sem nova migration ou dependência.
 
 > **Fase 6.3 — worker e tentativas manuais.** Processamento separado com reserva
 > durável e sem retry automático de resultados incertos. Ativação e limites em

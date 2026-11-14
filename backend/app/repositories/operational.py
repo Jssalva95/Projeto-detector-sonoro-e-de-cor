@@ -2,14 +2,14 @@
 
 from collections.abc import Sequence
 
-from sqlalchemy import and_, select, true
+from sqlalchemy import Select, and_, select, true
 from sqlalchemy.engine import RowMapping
 from sqlalchemy.orm import Session
 
 from app.models import Device, Event, Machine
 
 
-def evidence_rows(session: Session, machine_id: int | None = None) -> Sequence[RowMapping]:
+def evidence_statement(machine_id: int | None = None) -> Select:
     columns = (Event.id, Event.uuid, Event.event_type, Event.started_at, Event.created_at)
     fault = (select(*columns).where(
         Event.machine_id == Machine.id,
@@ -31,4 +31,8 @@ def evidence_rows(session: Session, machine_id: int | None = None) -> Sequence[R
     ).outerjoin(connection, true()).order_by(Machine.id, Device.id)
     if machine_id is not None:
         statement = statement.where(Machine.id == machine_id)
-    return session.execute(statement).mappings().all()
+    return statement
+
+
+def evidence_rows(session: Session, machine_id: int | None = None) -> Sequence[RowMapping]:
+    return session.execute(evidence_statement(machine_id)).mappings().all()

@@ -154,3 +154,23 @@ de tabela e pode aguardar transações existentes; não encerrar transações de
 automaticamente. Não usar downgrade/reupgrade como recuperação: isso reinicializa
 evidências de contexto. Worker não precisa ser iniciado e volume PostgreSQL permanece.
 Não existem endpoints de dashboard ou mudanças no frontend nesta etapa.
+
+## Dashboard — preparação do frontend, etapa 3
+
+Requer a etapa 2 e migration 0004 já aplicadas. Não há migration nova ou configuração
+adicional. Para atualizar somente a API após os testes:
+
+```powershell
+docker compose build backend
+docker compose run --rm -T --no-deps backend python -m pytest -q --tb=short
+docker compose up -d --no-deps --wait backend
+docker compose exec -T backend python -m alembic current
+docker compose exec -T backend python -m alembic check
+docker compose ps
+```
+
+Executar os comandos em sequência e parar se algum falhar. Conferir `/health`,
+`/ready`, `/docs` e os três GETs descritos em [dashboard.md](dashboard.md) com um
+access JWT válido, sem registrar tokens ou dados retornados em logs de diagnóstico.
+Os testes usam schemas privados. Não iniciar o perfil `alerts` para validar esta
+entrega; não é necessário envio externo, alteração de credencial ou recriação do volume.

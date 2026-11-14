@@ -42,8 +42,13 @@ def event_evidence(row: RowMapping, prefix: str) -> EventEvidence | None:
 
 
 def list_states(session: Session, machine_id: int | None = None) -> list[OperationalMachine]:
+    return states_from_rows(repository.evidence_rows(session, machine_id))
+
+
+def states_from_rows(rows: Sequence[RowMapping]) -> list[OperationalMachine]:
+    """Build the same read model for internal queries and paginated dashboard rows."""
     machines: dict[int, OperationalMachine] = {}
-    for row in repository.evidence_rows(session, machine_id):
+    for row in rows:
         identifier = row['machine_id']
         if identifier not in machines:
             fault = event_evidence(row, 'fault')
