@@ -131,3 +131,26 @@ após build e testes, usando o comando acima. Não há nova dependência ou migr
 A API publica eventos críticos após commit, com filas por cliente e entrega
 transitória em um único processo. Reconexão exige atualização por REST; não executar
 múltiplos workers/réplicas esperando broadcast compartilhado. Veja [websocket.md](websocket.md).
+
+## Estado operacional — preparação do frontend, etapa 2
+
+A imagem desta etapa exige a migration `0004_device_status_context` antes de
+iniciar a API atualizada. Ela acrescenta um marcador interno em devices e preenche
+seu valor com o maior ID de evento existente por dispositivo. Nenhum evento, alerta
+ou estado cadastrado é removido. A disponibilidade calculada começa UNKNOWN para
+dispositivos sem evidência posterior à migration, conforme contrato aprovado.
+
+Após build e testes, reservar uma breve interrupção da API para impedir que uma
+versão antiga aceite reassociações sem manter o marcador entre migration e atualização:
+
+```powershell
+docker compose stop backend
+docker compose run --rm -T --no-deps backend python -m alembic upgrade head
+docker compose up -d --no-deps --wait backend
+```
+
+Só iniciar a nova API se a migration terminar com sucesso. A migration usa locks
+de tabela e pode aguardar transações existentes; não encerrar transações de terceiros
+automaticamente. Não usar downgrade/reupgrade como recuperação: isso reinicializa
+evidências de contexto. Worker não precisa ser iniciado e volume PostgreSQL permanece.
+Não existem endpoints de dashboard ou mudanças no frontend nesta etapa.

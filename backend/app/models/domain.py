@@ -71,11 +71,15 @@ class Machine(IdentityCreated, Updated, Base):
 
 class Device(IdentityCreated, Updated, Base):
     __tablename__ = "devices"
-    __table_args__ = (UniqueConstraint("device_uid", name="uq_devices_device_uid"),)
+    __table_args__ = (
+        UniqueConstraint("device_uid", name="uq_devices_device_uid"),
+        CheckConstraint("status_event_id_floor >= 0", name="ck_devices_status_event_id_floor"),
+    )
 
     machine_id: Mapped[int] = mapped_column(BigInteger, reference("machines.id"), index=True)
     device_uid: Mapped[str] = mapped_column(Text)
     device_name: Mapped[str] = mapped_column(Text)
+    status_event_id_floor: Mapped[int] = mapped_column(BigInteger, server_default=text("0"))
     firmware_version: Mapped[str | None] = mapped_column(Text)
     last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
     is_active: Mapped[bool] = mapped_column(Boolean, server_default=text("true"))

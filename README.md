@@ -8,6 +8,13 @@
 > Validação atual: 475 testes passaram, incluindo recuperação por REST após
 > reconexão e isolamento entre publicação WebSocket e fila de alertas.
 
+Preparação da Fase 8: os [contratos aprovados](docs/pre-frontend-contracts.md)
+detalha estado operacional, dashboard, administração de alertas e escopo de telas.
+A etapa 2 implementa o estado operacional calculado e a proteção de contexto dos
+dispositivos. Endpoints de dashboard e administração de alertas aguardam suas etapas.
+Validação da etapa 2: 493 testes passaram; migration `0004_device_status_context`
+aplicada. Consulte [implantação](docs/deployment.md) e [testes](docs/testing.md).
+
 > **Fase 6.3 — worker e tentativas manuais.** Processamento separado com reserva
 > durável e sem retry automático de resultados incertos. Ativação e limites em
 > [docs/alert-worker.md](docs/alert-worker.md). Entrega externa ainda não validada.

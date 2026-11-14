@@ -701,3 +701,68 @@ Docker via PowerShell; Python nativo no Windows não foi executado.
 
 Nenhuma pendência funcional conhecida no escopo da Fase 7. Commit fica a cargo
 do usuário; o próximo trabalho é propor a Fase 8, mediante autorização.
+
+## Preparação do frontend — etapa 2 — 2026-11-14
+
+P1–P8 foram aprovados integralmente. Nesta tarefa foi implementada somente a etapa
+2: estado operacional calculado, evidências tipadas e marcador de contexto do
+dispositivo. Novos módulos `schemas/operational.py`, `repositories/operational.py`
+e `services/operational.py`; migration `0004_device_status_context`. Atualizados
+model Device, escrita de reassociação/reativação e fixtures das migrations.
+
+Validações executadas:
+
+```powershell
+docker compose run --rm -T --no-deps --volume ./backend:/app:ro backend python -m pytest -q -p no:cacheprovider tests/test_operational.py tests/test_equipment.py
+docker compose run --rm -T --no-deps --volume ./backend:/app:ro backend python -m pytest -q -p no:cacheprovider tests/test_operational_concurrency.py
+docker compose run --rm -T --no-deps --volume ./backend:/app:ro backend python -m pytest -q -p no:cacheprovider
+docker compose build backend
+docker compose ps --all
+docker compose stop backend
+docker compose up -d --no-deps --wait backend
+docker compose run --rm -T --no-deps backend python -m pytest -q
+docker compose exec -T backend python -m alembic current
+docker compose exec -T backend python -m alembic check
+docker compose exec -T backend python -m pip check
+docker compose exec -T backend python -m compileall -q app
+docker compose ps
+git diff --check
+git diff
+git status --short
+```
+
+Entre stop e up, a migration foi aplicada em container temporário
+(`docker compose run --rm -T --no-deps backend python -`) chamando
+`alembic.command.upgrade(Config('alembic.ini'), 'head')`. O script comparou,
+privadamente, contagens e fingerprints dos campos preexistentes nas sete tabelas
+antes/depois. Os dados foram preservados; o preenchimento do marcador foi conferido
+contra max(Event.id) por dispositivo. Nenhum segredo, dado de usuário ou hash de
+registro foi impresso. Não houve downgrade no banco real.
+
+Resultados: 46 testes focados de estado/CRUD e quatro testes iniciais de concorrência
+passaram. Depois foi acrescentado um teste de bloqueio durante migration. A primeira
+suíte completa teve 492 sucessos e uma falha de pré-requisito: o teste de versão do
+banco local ainda encontrava 0003, pois a migration só havia rodado nos schemas
+isolados. Após aplicar 0004, a suíte na imagem final passou com **493 testes em
+100,00s**, nenhum ignorado. Permanece o aviso preexistente Starlette/AnyIO.
+
+Cobertura: prioridades aprovadas, múltiplos dispositivos, ausência de evidência,
+independência de cadastro/falha/conectividade, datas fora de ordem, reconhecimento
+e metadados sem recuperação implícita, heartbeat sem inferência, reatribuição A→B→A,
+reativação, replay, preservação de histórico, campo interno rejeitado/omitido na API,
+consulta em uma única instrução SQL, CHECK do marcador e backfill com/sem eventos.
+Concorrência usa transações distintas e pg_blocking_pids para confirmar espera real
+no lock, incluindo objeto ORM em cache antes da reativação e ingestão durante migration.
+
+Build, pip check e compileall passaram. Alembic está em
+`0004_device_status_context (head)` sem diferenças de schema. Backend/PostgreSQL/
+frontend ficaram healthy. HTTP por Python confirmou `/health`, `/ready` e `/docs`
+com 200. O serviço de leitura operacional foi executado no banco local sem exibir
+registros; nenhuma escrita de estado foi feita por essa leitura.
+
+Efeito aprovado: disponibilidade requer novos eventos de conectividade após o
+marcador; isso não altera machines.status nem apaga falhas conhecidas. Não foram
+adicionadas dependências, variáveis, rotas de dashboard ou mudanças de frontend.
+Worker não iniciado, nenhum envio externo ou validação física. Testes executados
+em Docker via PowerShell, não em Python nativo Windows. Sem pendência conhecida
+da etapa 2; os endpoints ficam para a etapa 3.

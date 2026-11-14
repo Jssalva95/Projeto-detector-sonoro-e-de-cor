@@ -99,6 +99,9 @@ def update_device(session: Session, identifier: int, payload: DeviceUpdate) -> D
         device = get_device(session, identifier, lock=True)
         if payload.machine_id is not None:
             get_machine(session, payload.machine_id)
+        if ((payload.machine_id is not None and payload.machine_id != device.machine_id)
+                or (payload.is_active is True and not device.is_active)):
+            device.status_event_id_floor = repository.latest_device_event_id(session, device.id)
         for name, value in payload.model_dump(exclude_unset=True).items():
             setattr(device, name, value)
     return device
