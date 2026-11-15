@@ -8,10 +8,11 @@ import signal
 from sqlalchemy import select
 
 from app.alerts.config import poll_interval
-from app.alerts.providers import configured_providers
+from app.alerts.providers import configured_providers, providers_for_tests
 from app.database.session import session_scope
-from app.models import Alert
+from app.models import Alert, AlertTestAttempt
 from app.services.alert_delivery import process_one
+from app.services.alert_test_delivery import process_one as process_test
 
 logger = logging.getLogger(__name__)
 
@@ -19,9 +20,11 @@ logger = logging.getLogger(__name__)
 async def run(once: bool = False) -> None:
     interval = poll_interval()
     providers = configured_providers()
+    test_providers = providers_for_tests(providers)
     # Fail before delivery if the migration/database is unavailable.
     with session_scope() as session:
         session.execute(select(Alert.attempt_started_at).limit(0))
+        session.execute(select(AlertTestAttempt.attempt_started_at).limit(0))
     stop = asyncio.Event()
     loop = asyncio.get_running_loop()
     previous = {}
@@ -30,9 +33,21 @@ async def run(once: bool = False) -> None:
         # setting Event directly can leave an idle selector asleep until poll.
         previous[sig] = signal.signal(sig, lambda *_: loop.call_soon_threadsafe(stop.set))
     logger.info('alert_worker_ready channels=%s', ','.join(sorted(providers)) or 'none')
+    prefer_test = False
     try:
         while not stop.is_set():
-            worked = await process_one(providers)
+            if prefer_test:
+                worked = await process_test(test_providers)
+                if worked:
+                    prefer_test = False
+                else:
+                    worked = await process_one(providers)
+            else:
+                worked = await process_one(providers)
+                if worked:
+                    prefer_test = True
+                else:
+                    worked = await process_test(test_providers)
             if once:
                 return
             # An async function need not suspend (e.g. an ineligible alert).
@@ -51,7 +66,7 @@ async def run(once: bool = False) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--once', action='store_true', help='Process at most one unstarted alert')
+    parser.add_argument('--once', action='store_true', help='Process at most one unstarted real alert or test')
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format='%(levelname)s %(message)s')
     try:

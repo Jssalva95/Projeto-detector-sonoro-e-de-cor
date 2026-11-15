@@ -6,6 +6,7 @@ import logging
 from email.message import EmailMessage
 import smtplib
 import ssl
+from typing import Literal
 
 from app.alerts.base import ProviderError
 from app.alerts.config import EmailSettings, mailbox
@@ -64,8 +65,9 @@ def _ehlo(connection: smtplib.SMTP) -> None:
 
 
 class EmailProvider:
-    def __init__(self, settings: EmailSettings):
+    def __init__(self, settings: EmailSettings, *, purpose: Literal['alert', 'test'] = 'alert'):
         self.settings = settings
+        self.subject = 'Machine Monitor — teste de envio' if purpose == 'test' else 'Machine Monitor — alerta'
 
     async def send(self, message: str, destination: str) -> None:
         try:
@@ -81,7 +83,7 @@ class EmailProvider:
         mail = EmailMessage()
         mail['From'] = self.settings.sender
         mail['To'] = destination
-        mail['Subject'] = 'Machine Monitor — alerta'
+        mail['Subject'] = self.subject
         mail.set_content(message)
         connection: smtplib.SMTP | None = None
         stage = 'email_connection_failed'

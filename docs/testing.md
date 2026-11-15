@@ -955,3 +955,91 @@ Validação em Docker via PowerShell; não foi feito ensaio de carga nem valida�
 física/Python nativo Windows. Não há pendência funcional conhecida da etapa 4.
 Alterações sem commit. Fila de testes e sua proteção de identidade permanecem na
 etapa 5 e não são pendências desta entrega.
+
+## Preparação do frontend — etapa 5 (2026-11-14)
+
+Retomada após interrupção: já existiam modelos/schemas, migration 0005, rotas,
+serviços de teste e integração inicial do worker. Ainda não havia testes novos
+nem migration local aplicada. Base conferida: f3c3428 (etapa 4), banco em 0004.
+
+Acrescentados test_alert_tests_api.py e test_alert_tests_delivery.py, com schemas
+PostgreSQL privados e providers simulados. Fixtures anteriores aplicam também
+0005; expectativas OpenAPI incluem somente as três rotas aprovadas.
+
+Cobertura: autorização atual; replay antes de elegibilidade/cooldown/configuração;
+UUID concorrente entre solicitantes/destinatários; pending único; cooldown com
+Retry-After e fronteira; snapshot privado; filtros/páginas; constraints/FKs;
+edição/enqueue e desativação/reserva coordenados por locks reais; recarga do cache
+ORM; rollback HTTP; reserva confirmada antes de I/O; cancelamento e falhas de
+commit; dois workers/SKIP LOCKED; ausência de retry; reconciliação sem envio;
+assunto de teste e preservação do assunto real; alternância nas duas filas,
+inclusive com registros persistidos. Históricos reais permanecem separados.
+
+Primeiras rodadas: 158 testes de API/administração passaram; na rodada seguinte,
+223 passaram e um teste novo falhou por esperar hífen no assunto antigo, que
+usa travessão. Corrigida a expectativa, preservando o provider existente.
+Regressão antes da migration local: 745 passaram, com apenas a checagem da
+migration pública separada. Três testes adicionais de rollback/UUID/fila integrada
+também passaram. Avisos de cache ocorreram somente no primeiro mount read-only;
+rodadas posteriores com mount usaram -p no:cacheprovider.
+
+Comandos de validação executados (PowerShell, raiz do repositório):
+
+```powershell
+docker compose run --rm -T --no-deps -v "./backend:/app:ro" backend python -m pytest -q --tb=short tests/test_alert_tests_api.py tests/test_alert_admin_api.py tests/test_alert_admin_concurrency.py
+docker compose run --rm -T --no-deps -v "./backend:/app:ro" backend python -m pytest -q -p no:cacheprovider --tb=short tests/test_alert_tests_delivery.py tests/test_alert_delivery.py tests/test_alert_providers.py tests/test_domain.py tests/test_auth.py
+docker compose run --rm -T --no-deps -v "./backend:/app:ro" backend python -m pytest -q -p no:cacheprovider --tb=short -k "not test_baseline_migration_applied"
+docker compose run --rm -T --no-deps -v "./backend:/app:ro" backend python -m pytest -q -p no:cacheprovider --tb=short tests/test_alert_tests_api.py::test_failed_request_commit_rolls_back_queue tests/test_alert_tests_api.py::test_uuid_unique_after_completed_attempt tests/test_alert_tests_delivery.py::test_worker_consumes_both_persisted_queues_fairly
+docker compose config --quiet
+docker compose build backend
+docker compose stop backend alert-worker
+docker compose up -d --no-deps --wait backend
+docker compose exec -T backend python -m alembic check
+docker compose exec -T backend python -m alembic current
+docker compose exec -T backend python -m pip check
+docker compose exec -T backend python -m compileall -q app
+docker compose run --rm -T --no-deps -e EMAIL_ENABLED=false -e TELEGRAM_ENABLED=false alert-worker python -m app.alerts.worker --once
+docker compose ps
+git check-ignore .env
+git diff --check
+git diff
+git status --short
+```
+
+Entre stop e up, script Python via here-string PowerShell para
+docker compose run --rm -T --no-deps backend python - executou
+alembic.command.upgrade(Config('alembic.ini'), 'head'). Comparou contagens e
+hashes ordenados das sete tabelas anteriores antes/depois, apenas em memória:
+dados e marcadores intactos; alert_test_attempts criada vazia. A primeira chamada
+foi bloqueada pelo sandbox ao acessar Docker e repetida com permissão de acesso;
+a migration foi aplicada uma única vez. Nenhum downgrade no banco local.
+
+Build, alembic check (sem divergência), current (0005 head), pip check e compileall
+passaram. Backend/PostgreSQL/frontend healthy. Worker smoke encerrou com
+alert_worker_ready channels=none; nenhum envio nem alteração do .env.
+
+Outro script Python via docker compose exec -T backend python - consultou
+/health, /ready, /docs, /openapi.json, /api/v1/alert-tests e /api/v1/settings:
+HTTP 200. Access JWT de ADMIN existente ficou só em memória, sem imprimir tokens,
+destinos ou registros; respostas validadas por schema. Fila local continuou vazia.
+POST e demais operações de escrita ocorreram somente nos schemas de teste.
+
+Regressão final na imagem reconstruída:
+
+```powershell
+docker compose run --rm -T --no-deps backend python -m pytest -q --tb=short
+```
+
+**749 testes passaram em 201,23s, nenhum ignorado** (81 testes acrescentados).
+Restou somente a depreciação Starlette/AnyIO preexistente. Diff e status revisados;
+sem dependências novas, alteração de credenciais/volume, frontend ou envio real.
+
+Critérios P5/P6 atendidos: três rotas ADMIN, UUID idempotente, cooldown explícito,
+snapshot privado, integridade/migration, proteção de identidade, reserva durável,
+revalidação na reserva, filas alternadas, falhas sanitizadas e reconciliação manual
+sem reenvio. Não há pendência funcional conhecida desta etapa.
+Validação em Docker via PowerShell; não foi realizado ensaio de carga, execução
+Python nativa no Windows ou envio externo real. Esses testes não garantem ausência
+de toda falha futura nem comprovação de entrega na caixa do destinatário.
+Nenhuma suposição não documentada. Sem validação física aplicável ao escopo.
+Alterações aguardam commit do usuário; próximo desenvolvimento: frontend, Fase 8.

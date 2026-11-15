@@ -14,6 +14,8 @@ from app.api.events import router as events_router
 from app.api.websocket import router as websocket_router
 from app.api.dashboard import router as dashboard_router
 from app.api.alert_admin import router as alert_admin_router
+from app.api.alert_tests import router as alert_tests_router
+from app.services.alert_tests import CooldownActive, RequesterDenied
 from app.services.alert_admin import AlertAdminError, AlertAdminNotFound, AlertAdminConflict
 from app.services.equipment import EquipmentError, NotFound, InactiveDevice
 from app.alerts.config import AlertConfigurationError
@@ -28,6 +30,19 @@ app.include_router(events_router)
 app.include_router(websocket_router)
 app.include_router(dashboard_router)
 app.include_router(alert_admin_router)
+app.include_router(alert_tests_router)
+
+
+@app.exception_handler(CooldownActive)
+async def test_cooldown_error(request: Request, error: CooldownActive) -> JSONResponse:
+    return JSONResponse(status_code=429, content={'detail': 'test_cooldown_active'},
+                        headers={'Retry-After': str(error.retry_after), 'Cache-Control': 'no-store'})
+
+
+@app.exception_handler(RequesterDenied)
+async def test_requester_error(request: Request, error: RequesterDenied) -> JSONResponse:
+    return JSONResponse(status_code=error.status_code, content={'detail': 'requester_not_authorized'},
+                        headers={'Cache-Control': 'no-store'})
 
 
 @app.exception_handler(AlertAdminError)
@@ -49,7 +64,7 @@ async def equipment_error(request: Request, error: EquipmentError) -> JSONRespon
 
 @app.exception_handler(RequestValidationError)
 async def safe_auth_validation(request: Request, error: RequestValidationError) -> Response:
-    if request.url.path.startswith(('/api/v1/alert-recipients', '/api/v1/alerts', '/api/v1/settings')):
+    if request.url.path.startswith(('/api/v1/alert-recipients', '/api/v1/alerts', '/api/v1/alert-tests', '/api/v1/settings')):
         # Recipient destinations and unexpected input must not be echoed.
         return JSONResponse(status_code=422, content={'detail': 'Invalid administrative input'},
                             headers={'Cache-Control': 'no-store'})

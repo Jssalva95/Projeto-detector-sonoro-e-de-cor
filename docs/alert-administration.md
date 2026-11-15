@@ -25,7 +25,7 @@ validação da CLI: endereço simples ASCII, chat ID numérico ou identificador
 Telegram @nome. Isso valida formato; não confirma que o endereço existe.
 Destinatários com o mesmo endereço continuam sendo IDs independentes.
 
-Qualquer tentativa em alerts bloqueia mudança de canal/destino com 409,
+Qualquer tentativa em alerts ou alert_test_attempts bloqueia mudança de canal/destino com 409,
 independentemente de estar PENDING, SENT ou FAILED. Repetir o mesmo valor é
 permitido, assim como mudar nome ou atividade. Antes de existir tentativa,
 canal/destino podem ser corrigidos. Para outra identidade com histórico,
@@ -36,9 +36,8 @@ providers, criação ou ativação desses canais. A CLI compartilha criação,
 validação, ativação e desativação com a API; o retry continua sendo exclusivamente
 manual na CLI. Nenhuma rota de retry/reconciliação foi acrescentada.
 
-A tabela de testes de envio ainda não existe: sua proteção de identidade será
-acrescentada com a própria tabela na etapa 5. Não há consulta dinâmica a uma tabela
-ausente nem teste de envio antecipado.
+A etapa 5 acrescenta a tabela de testes e sua proteção de identidade.
+Rotas e execução independente estão em [alert-tests.md](alert-tests.md).
 
 ## Tentativas reais
 
@@ -76,8 +75,8 @@ Host, remetente, credenciais, tokens e variáveis arbitrárias nunca são serial
 
 `ALERT_TEST_COOLDOWN_SECONDS` foi acrescentada ao Compose e .env.example. Valor
 local aprovado: 300s, sem default no código. Assim como cooldown real, aceita
-número finito não negativo; zero explicitamente desabilita a espera. Ainda não
-há fila de testes para consumi-lo. Sua leitura agora é parte do contrato /settings.
+número finito não negativo; zero explicitamente desabilita a espera.
+A etapa 5 aplica esse valor à fila de testes; /settings também o expõe.
 O polling continua positivo; configurações operacionais existentes não foram alteradas.
 
 Os valores descrevem o ambiente da API, não provam prontidão de credenciais nem

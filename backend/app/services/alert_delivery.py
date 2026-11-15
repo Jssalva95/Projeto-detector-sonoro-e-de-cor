@@ -19,6 +19,17 @@ SAFE_ERRORS = frozenset({'invalid_message', 'invalid_destination', 'invalid_emai
 logger = logging.getLogger(__name__)
 
 
+async def deliver(providers: Mapping[str, AlertProvider], delivery: repository.Delivery) -> str | None:
+    """Shared sanitized transport outcome; cancellation keeps the durable claim."""
+    try:
+        await providers[delivery.channel].send(delivery.message, delivery.destination)
+    except ProviderError as failure:
+        return str(failure) if str(failure) in SAFE_ERRORS else 'delivery_unconfirmed'
+    except Exception:
+        return 'delivery_unconfirmed'
+    return None
+
+
 async def process_one(providers: Mapping[str, AlertProvider],
                       sessions: SessionFactory = session_scope) -> bool:
     with sessions() as session:
@@ -26,15 +37,7 @@ async def process_one(providers: Mapping[str, AlertProvider],
     # The context above must have committed before any external side effect.
     if delivery is None:
         return found
-    error = None
-    try:
-        await providers[delivery.channel].send(delivery.message, delivery.destination)
-    except ProviderError as failure:
-        error = str(failure) if str(failure) in SAFE_ERRORS else 'delivery_unconfirmed'
-    except Exception:
-        # Transport/library defects can happen after acceptance. Persist an
-        # explicit uncertain result, without raw exceptions/credentials/payloads.
-        error = 'delivery_unconfirmed'
+    error = await deliver(providers, delivery)
     # Cancellation/process death is deliberately not caught: the durable marker
     # remains and prevents automatic redispatch after restart.
     with sessions() as session:

@@ -57,6 +57,7 @@ def db():
                     domain_migration().upgrade()
                     attempt_migration().upgrade()
                     status_migration().upgrade()
+                    delivery_test_migration().upgrade()
                 with Session(bind=connection, join_transaction_mode="create_savepoint") as session:
                     yield session
             finally:
@@ -215,7 +216,7 @@ def test_migration_structure_and_downgrade_in_isolated_schema(db):
     connection = db.connection()
     inspector = inspect(connection)
     expected = {"users", "machines", "devices", "sensor_readings", "events",
-                "alert_recipients", "alerts"}
+                "alert_recipients", "alerts", "alert_test_attempts"}
     assert set(inspector.get_table_names()) == expected
     for table in expected:
         assert inspector.get_pk_constraint(table)["constrained_columns"] == ["id"]
@@ -229,6 +230,7 @@ def test_migration_structure_and_downgrade_in_isolated_schema(db):
         checks = inspector.get_check_constraints(table)
         assert all("sound_amplitude" not in check["sqltext"] for check in checks)
     with Operations.context(MigrationContext.configure(connection)):
+        delivery_test_migration().downgrade()
         status_migration().downgrade()
         attempt_migration().downgrade()
         domain_migration().downgrade()
@@ -238,6 +240,15 @@ def test_migration_structure_and_downgrade_in_isolated_schema(db):
 def status_migration():
     path = Path('alembic/versions/0004_device_status_context.py')
     spec = importlib.util.spec_from_file_location('status_migration', path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def delivery_test_migration():
+    path = Path('alembic/versions/0005_alert_test_attempts.py')
+    spec = importlib.util.spec_from_file_location('delivery_test_migration', path)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)

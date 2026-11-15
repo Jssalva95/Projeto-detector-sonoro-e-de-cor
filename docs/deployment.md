@@ -197,3 +197,35 @@ devem usar a mesma imagem atualizada para coordenar os locks de destinatário.
 Se houver worker real em operação, sua atualização deve preservar as reservas
 duráveis e seguir a parada graciosa descrita em [alert-worker.md](alert-worker.md).
 Não reabrir tentativas iniciadas. Esta entrega local não iniciou workers nem enviou mensagens.
+
+## Testes de envio — preparação do frontend, etapa 5
+
+Requer migration 0005_alert_test_attempts, aditiva, sem reiniciar reservas.
+Manter ALERT_TEST_COOLDOWN_SECONDS explícito (local aprovado: 300s).
+Não mudar credenciais nem recriar volume. Parar API e todos os workers antes de
+migrar e atualizar. Sem worker ativo, basta parar backend.
+
+```powershell
+docker compose config --quiet
+docker compose build backend
+docker compose stop backend alert-worker
+docker compose run --rm -T --no-deps backend python -m alembic upgrade head
+docker compose run --rm -T --no-deps backend python -m pytest -q --tb=short
+docker compose run --rm -T --no-deps backend python -m alembic check
+docker compose up -d --no-deps --wait backend
+docker compose exec -T backend python -m alembic current
+docker compose ps
+```
+
+Executar sequencialmente, parando em caso de erro. Não usar downgrade/reupgrade.
+API/CLI/worker precisam da mesma versão para proteger identidade nas duas filas.
+Reativação real do worker é separada e pode enviar pendências de ambas as filas.
+Smoke sem entrega, com canais explicitamente desabilitados:
+
+```powershell
+docker compose run --rm -T --no-deps -e EMAIL_ENABLED=false -e TELEGRAM_ENABLED=false alert-worker python -m app.alerts.worker --once
+```
+
+Não altera .env nem reserva mensagens. Smoke da API usa GET /health, /ready,
+/docs, /api/v1/alert-tests e /api/v1/settings com ADMIN. Não fazer POST de teste
+em banco real como validação silenciosa. Reconciliação em [alert-tests.md](alert-tests.md).

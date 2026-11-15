@@ -6,8 +6,8 @@ Data: 2026-11-14. Base inspecionada: `405e508`.
 inclui a coluna de contexto, sua inicialização, prioridade de estados, contratos
 de consultas, identidade dos destinatários, tabela de testes e cooldown de 300s.
 Aprovação de contrato não significa implementação concluída. A execução permanece
-dividida nas etapas 2 a 5. Etapas 2, 3 e 4 implementadas; entregas posteriores
-permanecem separadas. Contratos da API disponível em [dashboard.md](dashboard.md).
+dividida nas etapas 2 a 5, agora implementadas e validadas. O frontend permanece
+separado. Contratos da API em [dashboard.md](dashboard.md) e [alert-tests.md](alert-tests.md).
 
 ## 1. Evidências e limites já estabelecidos
 
@@ -254,7 +254,7 @@ Telegram usa a mesma finalidade. Não criar Event, Alert real ou disparo de sens
 
 ### 5.2 P6 — Persistência e execução aprovadas
 
-Nova tabela `alert_test_attempts`, a implementar na etapa 5 com migration versionada:
+Tabela `alert_test_attempts`, implementada na etapa 5 pela migration 0005:
 
 | Coluna | Tipo/regra |
 | --- | --- |
@@ -329,7 +329,7 @@ credenciais nem que um worker já reiniciou com esses valores. Sem endpoint de e
 | 2 (concluída) | Cálculo operacional e marcador de contexto aprovado; testes/migration |
 | 3 (concluída) | Três endpoints de dashboard e testes de agregações; 554 testes passaram |
 | 4 (concluída) | API administrativa, regras compartilhadas com CLI e consulta segura /settings; 668 testes passaram |
-| 5 | Migration/fila de testes, worker, reconciliação e regressão integrada |
+| 5 (concluída) | Migration/fila de testes, worker, reconciliação e regressão integrada; 749 testes passaram |
 
 As telas permanecem na Fase 8. Não renumerar fases anteriores nem marcar como
 implementados os requisitos novos. A matriz abaixo orienta aceite, não relata testes:
@@ -351,4 +351,7 @@ P1–P8 foram confirmados integralmente. Mudanças posteriores nesse contrato
 precisam ser identificadas e discutidas; não aplicar decisões diferentes silenciosamente.
 Dashboard implementado na etapa 3. Administração web e /settings implementados
 na etapa 4, descritos em [alert-administration.md](alert-administration.md).
-Fila de testes, seu guard de identidade e processamento permanecem na etapa 5.
+Fila de testes, proteção de identidade e processamento implementados na etapa 5,
+descritos em [alert-tests.md](alert-tests.md). Migration 0005 aplicada preservando
+os dados anteriores. Evidências e limites em [testing.md](testing.md); nenhum
+envio real nesta entrega. Frontend não iniciado.

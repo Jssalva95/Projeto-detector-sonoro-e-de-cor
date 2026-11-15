@@ -9,6 +9,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from app.database.session import DatabaseConfigurationError, session_scope
 from app.models import Alert, AlertRecipient
 from app.services.alert_admin import AlertAdminError, add_recipient, retry, set_active
+from app.services.alert_tests import reconcile
 
 
 def positive(value: str) -> int:
@@ -36,6 +37,9 @@ def main() -> int:
     retry_parser.add_argument('id', type=positive)
     retry_parser.add_argument('--accept-duplicate-risk', action='store_true')
     retry_parser.add_argument('--workers-stopped', action='store_true')
+    reconcile_parser = commands.add_parser('reconcile-test')
+    reconcile_parser.add_argument('id', type=positive)
+    reconcile_parser.add_argument('--workers-stopped', action='store_true')
     args = parser.parse_args()
     try:
         with session_scope() as session:
@@ -48,6 +52,9 @@ def main() -> int:
                 row = retry(session, args.id, accept_duplicate_risk=args.accept_duplicate_risk,
                             workers_stopped=args.workers_stopped)
                 result = {'alert_id': row.id, 'previous_alert_id': args.id}
+            elif args.command == 'reconcile-test':
+                row = reconcile(session, args.id, workers_stopped=args.workers_stopped)
+                result = {'test_id': row.id, 'status': row.status}
             elif args.command == 'list-recipients':
                 result = [{'id': r.id, 'name': r.name, 'channel': r.channel, 'active': r.is_active}
                           for r in session.scalars(select(AlertRecipient).order_by(AlertRecipient.id).limit(args.limit))]

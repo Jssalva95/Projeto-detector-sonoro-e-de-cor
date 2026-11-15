@@ -3,7 +3,7 @@
 from sqlalchemy import Select, func, select, true
 from sqlalchemy.orm import Session
 
-from app.models import Alert, AlertRecipient, Event
+from app.models import Alert, AlertRecipient, AlertTestAttempt, Event
 
 
 def recipient(session: Session, identifier: int, *, lock: bool = False) -> AlertRecipient | None:
@@ -14,12 +14,13 @@ def recipient(session: Session, identifier: int, *, lock: bool = False) -> Alert
 
 
 def has_attempts(session: Session, identifier: int) -> bool:
-    # Stage 5 must extend this guard to alert_test_attempts when that table exists.
-    return session.scalar(select(Alert.id).where(Alert.recipient_id == identifier).limit(1)) is not None
+    return (session.scalar(select(Alert.id).where(Alert.recipient_id == identifier).limit(1)) is not None
+            or session.scalar(select(AlertTestAttempt.id).where(AlertTestAttempt.recipient_id == identifier).limit(1)) is not None)
 
 
-def page(session: Session, model: type[Alert] | type[AlertRecipient], statement: Select,
-         limit: int, offset: int, *, descending: bool = False) -> tuple[int, list[dict[str, object]]]:
+def page(session: Session, model: type[Alert] | type[AlertRecipient] | type[AlertTestAttempt], statement: Select,
+         limit: int, offset: int, *, descending: bool = False,
+         excluded_columns: frozenset[str] = frozenset()) -> tuple[int, list[dict[str, object]]]:
     """Count and page use one snapshot, including offsets beyond the last row."""
     filtered = statement.cte('filtered')
     order = filtered.c.id.desc() if descending else filtered.c.id
@@ -27,7 +28,7 @@ def page(session: Session, model: type[Alert] | type[AlertRecipient], statement:
     metadata = select(func.count().label('total')).select_from(filtered).cte('metadata')
     rows = session.execute(select(metadata, selected).select_from(metadata).outerjoin(
         selected, true()).order_by(selected.c.id.desc() if descending else selected.c.id)).mappings().all()
-    keys = tuple(column.name for column in model.__table__.columns)
+    keys = tuple(column.name for column in model.__table__.columns if column.name not in excluded_columns)
     return rows[0]['total'], [{key: row[key] for key in keys} for row in rows if row['id'] is not None]
 
 

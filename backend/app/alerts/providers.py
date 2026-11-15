@@ -6,6 +6,15 @@ from app.alerts.email import EmailProvider
 from app.alerts.telegram import TelegramProvider
 
 
+def providers_for_tests(providers: dict[str, AlertProvider]) -> dict[str, AlertProvider]:
+    """Same transports/configuration; only the fixed email subject differs."""
+    result = dict(providers)
+    email = providers.get('EMAIL')
+    if isinstance(email, EmailProvider):
+        result['EMAIL'] = EmailProvider(email.settings, purpose='test')
+    return result
+
+
 def configured_providers() -> dict[str, AlertProvider]:
     telegram = telegram_settings()
     email = email_settings()

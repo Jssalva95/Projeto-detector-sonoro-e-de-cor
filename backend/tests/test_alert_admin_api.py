@@ -277,7 +277,7 @@ def test_failed_query_is_not_empty_success(db, admin, monkeypatch, path, method)
     assert response.status_code == 503 and response.json() == {'detail': 'Database unavailable'}
 
 
-def test_only_approved_admin_methods_and_no_test_send():
+def test_only_approved_admin_methods():
     paths = app.openapi()['paths']
     assert set(paths[RECIPIENTS]) == {'get', 'post'}
     assert set(paths[RECIPIENTS + '/{id}']) == {'get', 'patch'}
@@ -287,5 +287,7 @@ def test_only_approved_admin_methods_and_no_test_send():
         path = path.replace('/1', '/{id}')
         for operation in paths[path].values():
             assert operation['security'] == [{'HTTPBearer': []}]
-    assert '/api/v1/alert-tests' not in paths
-    assert RECIPIENTS + '/{id}/test' not in paths
+    for path, method in [('/api/v1/alert-tests', 'get'), ('/api/v1/alert-tests/{id}', 'get'),
+                         (RECIPIENTS + '/{id}/test', 'post')]:
+        assert set(paths[path]) == {method}
+        assert paths[path][method]['security'] == [{'HTTPBearer': []}]

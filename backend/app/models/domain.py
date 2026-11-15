@@ -43,6 +43,7 @@ class User(IdentityCreated, Updated, Base):
     password_hash: Mapped[str] = mapped_column(Text)
     role: Mapped[str] = mapped_column(Text)
     is_active: Mapped[bool] = mapped_column(Boolean, server_default=text("true"))
+    test_attempts: Mapped[list['AlertTestAttempt']] = relationship(back_populates='requester', passive_deletes='all')
     acknowledged_events: Mapped[list["Event"]] = relationship(
         back_populates="acknowledged_user", passive_deletes="all",
     )
@@ -161,6 +162,7 @@ class AlertRecipient(IdentityCreated, Updated, Base):
     destination: Mapped[str] = mapped_column(Text)
     is_active: Mapped[bool] = mapped_column(Boolean, server_default=text("true"))
     alerts: Mapped[list["Alert"]] = relationship(back_populates="recipient", passive_deletes="all")
+    test_attempts: Mapped[list['AlertTestAttempt']] = relationship(back_populates='recipient', passive_deletes='all')
 
 
 class Alert(IdentityCreated, Base):

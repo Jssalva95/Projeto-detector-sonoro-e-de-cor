@@ -81,6 +81,7 @@ def test_docs_and_health_contract() -> None:
             "/api/v1/dashboard/machine-status",
             "/api/v1/alert-recipients", "/api/v1/alert-recipients/{id}",
             "/api/v1/alerts", "/api/v1/alerts/{id}", "/api/v1/settings",
+            "/api/v1/alert-tests", "/api/v1/alert-tests/{id}", "/api/v1/alert-recipients/{id}/test",
         }
         assert schema["components"]["schemas"]["HealthResponse"]["properties"]["status"]["const"] == "ok"
 
@@ -117,7 +118,7 @@ def test_baseline_migration_applied() -> None:
     engine = create_engine(database_url(), hide_parameters=True)
     try:
         with engine.connect() as connection:
-            assert connection.scalar(text("SELECT version_num FROM alembic_version")) == "0004_device_status_context"
+            assert connection.scalar(text("SELECT version_num FROM alembic_version")) == "0005_alert_test_attempts"
             columns = inspect(connection).get_columns("alembic_version")
             assert [column["name"] for column in columns] == ["version_num"]
     finally:

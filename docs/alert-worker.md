@@ -153,6 +153,14 @@ Não há reclassificação automática de tentativas antigas por timeout/idade.
 
 ## Validação e limites
 
+Na etapa 5 da preparação do frontend, este mesmo worker também consome
+alert_test_attempts. Alterna entre alertas reais e testes quando ambas as filas
+têm trabalho; fila vazia não bloqueia a outra. Exige migration 0005 antes de
+iniciar, além da 0003. --once processa no máximo uma tentativa entre as duas filas.
+Teste de envio tem assunto fixo próprio e não cria Event/Alert real.
+Reconciliação usa reconcile-test ID --workers-stopped, sem reenvio; detalhes em
+[alert-tests.md](alert-tests.md). Reativar o worker pode enviar pendências das duas filas.
+
 `test_alert_delivery.py` usa PostgreSQL real em schemas privados e providers
 simulados, cobrindo transações independentes, falhas antes/depois do envio,
 cancelamento, concorrência, SKIP LOCKED, configuração, template, CLI e migration.

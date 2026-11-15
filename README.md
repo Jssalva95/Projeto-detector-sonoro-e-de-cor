@@ -14,13 +14,18 @@ A etapa 2 implementa o estado operacional calculado e a proteção de contexto d
 dispositivos. A etapa 3 acrescenta os três [endpoints de dashboard](docs/dashboard.md),
 com resumo operacional, série temporal UTC e paginação de máquinas com evidências.
 Etapa 4: [administração de destinatários, consultas de alertas e configurações](docs/alert-administration.md)
-exclusivas de ADMIN. A fila de testes de envio permanece na etapa 5; não há frontend novo.
+exclusivas de ADMIN. Etapa 5: [fila independente de testes de envio](docs/alert-tests.md),
+com UUID idempotente, cooldown, worker compartilhado e reconciliação sem reenvio.
+Não há frontend novo.
 Validação da etapa 2: 493 testes passaram; migration `0004_device_status_context`
 aplicada. Consulte [implantação](docs/deployment.md) e [testes](docs/testing.md).
 Validação da etapa 3: 554 testes passaram; os três GETs autenticados responderam
 HTTP 200 no backend local, sem nova migration ou dependência.
 Validação da etapa 4: 668 testes passaram; consultas administrativas e /settings
 responderam HTTP 200. Banco e tentativas preservados; sem envio externo.
+Validação da etapa 5: **749 testes passaram**, migration 0005 aplicada preservando
+as sete tabelas anteriores, API/worker verificados sem envio externo.
+Detalhes e limites em [docs/testing.md](docs/testing.md).
 
 > **Fase 6.3 — worker e tentativas manuais.** Processamento separado com reserva
 > durável e sem retry automático de resultados incertos. Ativação e limites em
