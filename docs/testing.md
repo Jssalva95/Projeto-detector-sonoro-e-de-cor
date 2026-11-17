@@ -1043,3 +1043,57 @@ Python nativa no Windows ou envio externo real. Esses testes não garantem ausê
 de toda falha futura nem comprovação de entrega na caixa do destinatário.
 Nenhuma suposição não documentada. Sem validação física aplicável ao escopo.
 Alterações aguardam commit do usuário; próximo desenvolvimento: frontend, Fase 8.
+
+## Entrega corretiva 1 — serialização dos erros de leituras
+
+Antes da correção, o novo teste de `color_confidence=1e309` falhou com
+`ValueError: Out of range float values are not JSON compliant`: o handler padrão
+tentava serializar `input=inf`, convertendo um erro de validação em HTTP 500.
+A proteção já existente para `finite_number` não cobria erros de limite, enum
+e campos extras. A correção reutiliza os diagnósticos seguros de eventos para
+leituras (corpo, query e path), mantendo a mensagem específica de `finite_number`.
+
+Acrescentados 11 casos: overflow positivo/negativo em confidence, cor e campo
+extra; objeto aninhado com múltiplos erros, com e sem erro `finite_number`;
+ID e filtros inválidos. Verificam JSON serializável, diagnósticos sem `input`/`ctx`,
+ausência de inserção e requisição válida após a rejeição. Os testes de amplitude
+numérica não finita também verificam a mensagem de erro já estabelecida.
+PostgreSQL é exercitado em schemas transacionais removidos por rollback;
+os testes desabilitam os canais externos de alertas.
+
+Comandos executados na raiz do repositório (PowerShell):
+
+```powershell
+docker compose run --rm -T --no-deps -v "./backend:/app:ro" backend python -m pytest -q -p no:cacheprovider --tb=short -x tests/test_readings.py -k overflow_validation_json_safe
+docker compose run --rm -T --no-deps -v "./backend:/app:ro" backend python -m pytest -q -p no:cacheprovider --tb=short tests/test_readings.py tests/test_validation_boundaries.py
+docker compose build backend
+docker compose config --quiet
+```
+
+O primeiro comando reproduziu a falha antes da correção (parou no primeiro caso).
+Após corrigir o handler, **83 testes passaram em 24,34s**. Build e configuração
+Compose passaram. Nenhuma dependência, migration, credencial ou regra de domínio
+foi alterada. Esta entrega não inclui as demais correções preparatórias da Fase 8.
+
+Validação final na imagem reconstruída, sem bind mount:
+
+```powershell
+docker compose run --rm -T --no-deps backend python -m pytest -q -p no:cacheprovider --tb=short
+docker compose up -d --no-deps --wait backend
+docker compose exec -T backend python -m alembic current
+docker compose exec -T backend python -m alembic check
+docker compose ps
+docker compose exec -T backend python -c "import urllib.request; paths=('/health', '/ready', '/docs', '/openapi.json'); results=[(p, urllib.request.urlopen('http://127.0.0.1:8000'+p, timeout=10).status) for p in paths]; print(results); assert all(status == 200 for _, status in results)"
+git diff --check
+git diff
+git status --short
+```
+
+**760 testes passaram em 178,47s, nenhum ignorado**. Permanece somente o aviso
+de depreciação Starlette/AnyIO preexistente. Backend recriado com a imagem corrigida;
+backend, PostgreSQL e frontend healthy. Os quatro endpoints consultados retornaram
+HTTP 200. Migration continua em `0005_alert_test_attempts (head)`, sem divergência
+no Alembic. Diff revisado e sem erros de whitespace (Git apenas informa a conversão
+LF/CRLF configurada no Windows). Nenhum envio externo, alteração de `.env` ou
+commit realizado. Entrega corretiva 1 concluída; próxima entrega prevista:
+validação de NUL nos campos textuais, ainda não implementada aqui.

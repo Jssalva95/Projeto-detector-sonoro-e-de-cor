@@ -38,6 +38,14 @@ aceitos. Duração é BIGINT não negativo.
 - 422: payload, ID, filtros, datas ou paginação inválidos.
 - 503: configuração de autenticação ou banco indisponível.
 
+Erros de validação de leituras retornam 422 com `detail` contendo uma lista de
+diagnósticos (`loc`, `type`, `msg`), inclusive em filtros e IDs da URL. `input` e
+`ctx` são omitidos para evitar ecoar valores não serializáveis, como infinitos
+resultantes de overflow numérico, inclusive em campos extras e objetos aninhados.
+Preserva-se a resposta já existente quando há erro `finite_number` na rota
+`/api/v1/readings`: `{"detail": "Reading numbers must be finite"}`, mesmo quando
+acompanhado de outros erros. Os limites e os valores válidos não foram alterados.
+
 A leitura deve corresponder à associação atual do dispositivo no momento da
 inserção. Uma leitura atrasada para a associação anterior retorna 409. Leituras
 já persistidas mantêm seu machine_id após reassociação. O POST bloqueia a linha

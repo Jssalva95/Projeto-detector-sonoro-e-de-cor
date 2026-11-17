@@ -121,7 +121,57 @@ def test_json_numeric_overflow_rejected_without_insert(client, db, payload, valu
     body = json.dumps(payload | {"sound_amplitude": "overflow"}).replace('"overflow"', value)
     response = client.post(PATH, headers=KEY_HEADER | {"Content-Type": "application/json"}, content=body)
     assert response.status_code == 422
+    assert response.json() == {"detail": "Reading numbers must be finite"}
     assert db.scalar(select(func.count()).select_from(SensorReading)) == 0
+
+
+@pytest.mark.parametrize("value", ["1e309", "-1e309"])
+@pytest.mark.parametrize("field", ["color_confidence", "color", "unexpected"])
+def test_overflow_validation_json_safe_no_write_then_valid(client, db, payload, field, value):
+    body = json.dumps(payload | {field: "overflow"}).replace('"overflow"', value)
+    response = client.post(PATH, headers=KEY_HEADER | {"Content-Type": "application/json"}, content=body)
+    assert response.status_code == 422
+    errors = response.json()["detail"]
+    assert errors and errors[0]["loc"] == ["body", field]
+    assert all(set(error) == {"loc", "type", "msg"} for error in errors)
+    json.dumps(response.json(), allow_nan=False)
+    assert db.scalar(select(func.count()).select_from(SensorReading)) == 0
+    assert post(client, payload).status_code == 201
+    assert db.scalar(select(func.count()).select_from(SensorReading)) == 1
+
+
+@pytest.mark.parametrize("finite_error", [False, True])
+def test_multiple_validation_errors_with_nested_overflow(client, db, payload, finite_error):
+    changes = {"color": "GREEN", "unexpected": {"nested": ["overflow"]}}
+    if finite_error:
+        changes["sound_amplitude"] = "overflow"
+    body = json.dumps(payload | changes).replace('"overflow"', '1e309')
+    response = client.post(PATH, headers=KEY_HEADER | {"Content-Type": "application/json"}, content=body)
+    assert response.status_code == 422
+    if finite_error:
+        assert response.json() == {"detail": "Reading numbers must be finite"}
+    else:
+        errors = response.json()["detail"]
+        assert {tuple(error["loc"]) for error in errors} == {("body", "color"), ("body", "unexpected")}
+        assert all(set(error) == {"loc", "type", "msg"} for error in errors)
+    json.dumps(response.json(), allow_nan=False)
+    assert db.scalar(select(func.count()).select_from(SensorReading)) == 0
+    assert post(client, payload).status_code == 201
+
+
+@pytest.mark.parametrize("suffix, params, location", [
+    ("/invalid", {}, ["path", "id"]),
+    ("", {"color": "GREEN"}, ["query", "color"]),
+    ("", {"start_date": "0001-01-01T00:00:00+14:00"}, ["query", "start_date"]),
+])
+def test_query_and_path_validation_safe_metadata(client, admin, suffix, params, location):
+    response = client.get(PATH + suffix, headers=admin, params=params)
+    assert response.status_code == 422
+    errors = response.json()["detail"]
+    assert errors and errors[0]["loc"] == location
+    assert all(set(error) == {"loc", "type", "msg"} for error in errors)
+    json.dumps(response.json(), allow_nan=False)
+    assert client.get(PATH, headers=admin).status_code == 200
 
 
 def test_offset_bigint_boundary(client, admin, payload):
