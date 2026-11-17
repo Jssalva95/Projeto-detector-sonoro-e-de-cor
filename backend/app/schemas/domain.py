@@ -21,6 +21,15 @@ Duration = Annotated[int, Field(ge=0, le=9223372036854775807)]
 RgbValue = Annotated[int, Field(ge=0, le=2147483647)]
 
 
+def reject_nul(value: str) -> str:
+    if "\x00" in value:
+        raise ValueError("Text must not contain NUL characters")
+    return value
+
+
+NulFreeText = Annotated[str, AfterValidator(reject_nul)]
+
+
 class DataSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True, extra="forbid")
 
@@ -50,11 +59,11 @@ class UserRead(UserData, Created, Updated):
 
 
 class MachineCreate(DataSchema):
-    serial_number: str
-    name: str
-    block: str
-    corridor: str
-    description: str | None = None
+    serial_number: NulFreeText
+    name: NulFreeText
+    block: NulFreeText
+    corridor: NulFreeText
+    description: NulFreeText | None = None
     status: MachineStatus
 
 
@@ -64,9 +73,9 @@ class MachineRead(MachineCreate, Created, Updated):
 
 class DeviceCreate(DataSchema):
     machine_id: Identifier
-    device_uid: str
-    device_name: str
-    firmware_version: str | None = None
+    device_uid: NulFreeText
+    device_name: NulFreeText
+    firmware_version: NulFreeText | None = None
     is_active: bool = True
 
 

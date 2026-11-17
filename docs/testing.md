@@ -1097,3 +1097,61 @@ no Alembic. Diff revisado e sem erros de whitespace (Git apenas informa a conver
 LF/CRLF configurada no Windows). Nenhum envio externo, alteração de `.env` ou
 commit realizado. Entrega corretiva 1 concluída; próxima entrega prevista:
 validação de NUL nos campos textuais, ainda não implementada aqui.
+
+## Entrega corretiva 2 — NUL em máquinas, dispositivos e heartbeat
+
+Partida no commit `05ead93`, com repositório limpo. O teste novo de criação de
+máquina com NUL em `serial_number` reproduziu, antes da correção, `DataError` do
+driver PostgreSQL: `PostgreSQL text fields cannot contain NUL (0x00) bytes`.
+A fixture usa a aplicação real com sessão transacional de teste; nela a exceção
+do driver é propagada. A sessão da API trata falhas de banco como indisponibilidade,
+mas uma entrada inválida deve ser recusada com 422 antes dessa camada.
+
+`NulFreeText` valida os textos dos schemas de criação, atualização e heartbeat.
+Não remove caracteres nem normaliza textos. Os 21 casos novos em
+`tests/test_equipment_validation.py` cobrem os cinco textos de Machine em
+POST/PATCH, os três textos de Device em POST/PATCH e os três textos do heartbeat,
+além de identificadores Unicode no heartbeat e preservação de campos omitidos/null.
+Verificam 422, localização do campo, ausência de alteração do registro/last_seen_at,
+contagens e sucesso de uma requisição válida seguinte, com textos preservados no
+PostgreSQL. Dados ficam em schemas isolados removidos por rollback; não há envio
+externo pelos testes.
+
+Comandos executados na raiz do repositório:
+
+```powershell
+docker compose run --rm -T --no-deps -v "./backend:/app:ro" backend python -m pytest -q -p no:cacheprovider --tb=short -x tests/test_equipment_validation.py
+docker compose run --rm -T --no-deps -v "./backend:/app:ro" backend python -m pytest -q -p no:cacheprovider --tb=short tests/test_equipment_validation.py tests/test_equipment.py tests/test_domain.py tests/test_validation_boundaries.py
+docker compose build backend
+```
+
+O primeiro comando reproduziu a falha antes da correção. Após a correção,
+**102 testes passaram em 38,44s**; build concluído. Sem alterações em autenticação,
+regras de null/omissão, models, migrations, dependências, `.env` ou volume PostgreSQL.
+
+Validação final:
+
+```powershell
+docker compose run --rm -T --no-deps backend python -m pytest -q -p no:cacheprovider --tb=short
+docker compose config --quiet
+docker compose up -d --no-deps --wait backend
+docker compose exec -T backend python -m alembic current
+docker compose exec -T backend python -m alembic check
+docker compose ps
+docker compose exec -T backend python -c "import urllib.request; paths=('/health', '/ready', '/docs', '/openapi.json'); results=[(p, urllib.request.urlopen('http://127.0.0.1:8000'+p, timeout=10).status) for p in paths]; print(results); assert all(status == 200 for _, status in results)"
+git diff --check
+git diff
+git status --short
+```
+
+Na imagem reconstruída, sem bind mount, **781 testes passaram em 212,58s,
+nenhum ignorado**. Permanece apenas a depreciação Starlette/AnyIO preexistente.
+Compose validado; backend atualizado, backend/PostgreSQL/frontend healthy.
+Os quatro endpoints retornaram HTTP 200. Migration em `0005_alert_test_attempts
+(head)` e nenhuma divergência detectada pelo Alembic. Uma chamada inicial de
+Compose junto a comandos de leitura emitiu aviso de acesso ao arquivo de
+configuração Docker no sandbox; a execução independente passou sem aviso.
+Diff revisado, sem erros de whitespace, somente avisos de conversão LF/CRLF
+configurada no Windows. Nenhuma suposição não documentada ou validação física
+necessária. Entrega corretiva 2 concluída, sem commit automático. A entrega 3
+(verificação de estrutura/migrations no readiness) permanece fora deste escopo.

@@ -42,6 +42,15 @@ description e firmware_version podem ser limpos com null. Campos obrigatórios
 não aceitam null explícito. PATCH vazio mantém o registro. Campos desconhecidos,
 id, created_at, updated_at e last_seen_at não podem ser escritos pelo cliente.
 
+Os textos de máquinas (`serial_number`, `name`, `block`, `corridor`, `description`)
+e dispositivos (`device_uid`, `device_name`, `firmware_version`) rejeitam NUL
+(U+0000) com HTTP 422 na validação de entrada, antes da persistência. A mesma
+regra vale para `device_uid`, `serial_number` e `firmware_version` no heartbeat,
+antes de consultar os identificadores. NUL é incompatível com TEXT no PostgreSQL.
+O valor é rejeitado, sem remoção ou substituição de caracteres. Textos sem NUL
+permanecem intactos, incluindo acentos, emojis, espaços, tabulações e quebras de
+linha. Esta regra não modifica os contratos existentes de campos omitidos/null.
+
 A reassociação é permitida via PATCH do dispositivo. O machine_id histórico de
 leituras/eventos permanece intocado. Esta fase não cria leituras nem eventos.
 
