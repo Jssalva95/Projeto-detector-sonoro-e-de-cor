@@ -1155,3 +1155,68 @@ Diff revisado, sem erros de whitespace, somente avisos de conversão LF/CRLF
 configurada no Windows. Nenhuma suposição não documentada ou validação física
 necessária. Entrega corretiva 2 concluída, sem commit automático. A entrega 3
 (verificação de estrutura/migrations no readiness) permanece fora deste escopo.
+
+## Entrega corretiva 3 — readiness com migrations e estrutura necessária
+
+Partida no commit `7bcb1f3`, sem alterações pendentes. Antes da correção, o teste
+que renomeia uma tabela no schema isolado recebeu 200 de `/ready`, quando deveria
+receber 503. A consulta `SELECT 1` apenas confirmava conectividade.
+
+Readiness agora compara o conjunto de revisões em `alembic_version` com os heads
+dos arquivos Alembic da imagem (caminho absoluto, independente do diretório de
+execução). Em seguida, executa SELECT das colunas de cada tabela de `Base.metadata`
+com predicado falso. Não busca registros de domínio nem executa DDL/migrations.
+Não guarda em cache o resultado de disponibilidade. Respostas mantidas:
+200 `{"status":"ok"}` e 503 `{"detail":"Database unavailable"}`. `/health`
+continua independente do banco.
+
+Os 21 novos casos em `tests/test_readiness.py` usam PostgreSQL em schema privado
+com DDL transacional removido por rollback. Cobrem as oito tabelas ausentes,
+três colunas ausentes mesmo com revisão atual, versões vazias/antigas/desconhecidas
+ou extras, tabela de versões ausente, banco sem tabelas, migrations ausentes ou
+diretório vazio na imagem, execução em outro diretório e consultas sem escrita
+ou busca de registros. Após restauração de tabelas/colunas/revisões, verificam
+retorno a 200 sem reiniciar a aplicação. Respostas de falha não expõem detalhes.
+
+```powershell
+docker compose run --rm -T --no-deps -v "./backend:/app:ro" backend python -m pytest -q -p no:cacheprovider --tb=short -x tests/test_readiness.py -k missing_table
+docker compose run --rm -T --no-deps -v "./backend:/app:ro" backend python -m pytest -q -p no:cacheprovider --tb=short tests/test_readiness.py tests/test_health.py tests/test_database.py tests/test_phase1.py
+docker compose build backend
+```
+
+Primeiro comando: falha reproduzida antes da correção. Após a correção,
+**32 testes passaram em 11,65s**; build concluído. A documentação de deployment
+passa a orientar iniciar PostgreSQL, aplicar migrations explicitamente e somente
+então aguardar o backend saudável. Nenhuma migration nova ou alteração em
+credenciais, volume, dependências, frontend ou providers.
+
+Limites: readiness valida revisões e disponibilidade para SELECT de tabelas e
+colunas mapeadas; não audita tipos, índices, constraints ou permissões de escrita.
+Esses aspectos continuam sujeitos ao Alembic e aos testes de persistência.
+
+Validação final na imagem reconstruída, sem bind mount:
+
+```powershell
+docker compose run --rm -T --no-deps backend python -m pytest -q -p no:cacheprovider --tb=short
+docker compose config --quiet
+docker compose up -d --no-deps --wait backend
+docker compose exec -T backend python -m alembic current
+docker compose exec -T backend python -m alembic check
+docker compose ps
+docker compose exec -T backend python -c "import urllib.request; paths=('/health', '/ready', '/docs', '/openapi.json'); results=[(p, urllib.request.urlopen('http://127.0.0.1:8000'+p, timeout=10).status) for p in paths]; print(results); assert all(status == 200 for _, status in results)"
+git diff --check
+git diff
+git status --short
+```
+
+**802 testes passaram em 183,65s, nenhum ignorado**. Único aviso: depreciação
+Starlette/AnyIO preexistente. Backend recriado com o novo readiness e healthy;
+PostgreSQL/frontend também healthy. HTTP 200 nos quatro endpoints consultados.
+Migration permanece `0005_alert_test_attempts (head)`; Alembic não detectou
+divergências. Não foi preciso executar upgrade no banco local nesta entrega.
+Configuração Compose validada. Uma consulta inicial de status Docker foi bloqueada
+pelo sandbox; a repetição com acesso autorizado funcionou. Diff revisado, sem
+erros de whitespace (apenas avisos LF/CRLF do Git no Windows). Nenhum envio externo,
+commit automático, suposição não documentada ou validação física neste escopo.
+Entrega corretiva 3 concluída. As questões de dependências do frontend e CORS
+continuam destinadas à Fase 8; não foram implementadas nesta entrega.

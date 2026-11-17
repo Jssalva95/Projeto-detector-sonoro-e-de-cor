@@ -50,6 +50,9 @@ são consumidas nesta fase. Não publique nem compartilhe o `.env`.
 
 ```powershell
 docker compose config --quiet
+docker compose up -d --wait postgres
+docker compose build backend
+docker compose run --rm -T --no-deps backend python -m alembic upgrade head
 docker compose up --build -d --wait
 docker compose ps
 ```
@@ -63,8 +66,27 @@ configuração, sem excluir os dados para contornar o problema.
 Abra `http://localhost:<FRONTEND_PORT>` usando a porta escolhida.
 Backend: `http://localhost:<BACKEND_PORT>/health`.
 Swagger e ReDoc: `/docs` e `/redoc` na mesma origem do backend.
-`/health` retorna `{"status":"ok"}`; `/ready` faz `SELECT 1` e retorna 503 se
-a configuração/conexão PostgreSQL falhar. Nenhum schema é criado nesta fase.
+`/health` retorna `{"status":"ok"}` enquanto o processo está ativo, sem consultar
+o banco. No checkout atual, `/ready` exige as revisões Alembic da imagem aplicadas
+e consulta todas as colunas mapeadas, com predicado falso, sem buscar registros.
+Retorna 503 `{"detail":"Database unavailable"}` se a configuração/conexão falhar,
+se faltar a tabela de versões, se as revisões divergirem, se as migrations não
+estiverem disponíveis na imagem ou se uma tabela/coluna necessária não puder ser
+consultada. No sucesso mantém 200 `{"status":"ok"}`. Não expõe nomes de tabelas,
+SQL, revisões ou credenciais na resposta de falha.
+
+Execute os comandos acima em sequência, interrompendo se algum falhar. O banco
+deve iniciar primeiro; a migration é aplicada por comando explícito antes de
+aguardar o backend saudável. Readiness não aplica migrations nem corrige a
+estrutura automaticamente. Preserve o volume; não use `stamp` para encobrir
+migrations pendentes. Esta ordem também evita que o frontend fique aguardando
+um backend com banco ainda vazio numa instalação nova.
+
+A checagem verifica revisões e disponibilidade de tabelas/colunas com permissão
+de SELECT. Não audita tipos, índices, constraints, permissões de escrita ou
+serviços externos. Continue executando `python -m alembic check` e os testes
+de persistência nas validações de implantação. O bootstrap original não criava
+schema de domínio; o checkout atual exige as migrations das fases já concluídas.
 
 Para encerrar preservando os dados:
 
