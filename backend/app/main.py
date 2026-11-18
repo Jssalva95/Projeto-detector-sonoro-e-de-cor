@@ -4,6 +4,7 @@ from fastapi import FastAPI, Request, Response
 from fastapi.exception_handlers import request_validation_exception_handler
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from app.cors import ConfiguredCORSMiddleware
 
 from app.api.health import router
 from app.api.auth import router as auth_router
@@ -21,6 +22,7 @@ from app.services.equipment import EquipmentError, NotFound, InactiveDevice
 from app.alerts.config import AlertConfigurationError
 
 app = FastAPI(title="Machine Monitor")
+app.add_middleware(ConfiguredCORSMiddleware)
 app.include_router(router)
 app.include_router(auth_router)
 app.include_router(machines_router)

@@ -6,6 +6,9 @@
 > As credenciais ADMIN são usadas somente no comando de seed, não no serviço.
 > Na Fase 3, DEVICE_API_KEY também é obrigatória no Compose. Consulte
 > [equipment.md](equipment.md); o heartbeat usa X-API-Key.
+> Na Fase 8.1, configure também CORS_ALLOWED_ORIGINS, VITE_API_BASE_URL e VITE_WS_URL
+> conforme [frontend-integration.md](frontend-integration.md). São configurações
+> explícitas; somente as URLs públicas são encaminhadas ao frontend.
 
 ## Escopo e pré-requisitos
 

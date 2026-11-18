@@ -9,6 +9,7 @@ import uvicorn
 from uvicorn.config import LOGGING_CONFIG
 
 from app.websocket.config import websocket_settings
+from app.cors import cors_origins
 
 
 class TransportLogFilter(logging.Filter):
@@ -30,6 +31,7 @@ class TransportLogFilter(logging.Filter):
 
 def main() -> int:
     try:
+        cors_origins()
         settings = websocket_settings()
         port = int(os.environ['BACKEND_PORT'])
         if not 1 <= port <= 65535:

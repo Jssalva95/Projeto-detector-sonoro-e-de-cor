@@ -1220,3 +1220,91 @@ erros de whitespace (apenas avisos LF/CRLF do Git no Windows). Nenhum envio exte
 commit automático, suposição não documentada ou validação física neste escopo.
 Entrega corretiva 3 concluída. As questões de dependências do frontend e CORS
 continuam destinadas à Fase 8; não foram implementadas nesta entrega.
+
+## Fase 8.1 — base de integração HTTP e CORS
+
+Base: commit `099c22b`, repositório limpo. Sem implementação de sessão ou telas.
+Contrato e configuração em [frontend-integration.md](frontend-integration.md).
+Foram acrescentadas somente as três configurações públicas locais necessárias
+ao `.env` ignorado, preservando credenciais: CORS_ALLOWED_ORIGINS com as duas
+origens locais já aprovadas, API localhost:8000 e WS na mesma origem/rota existente.
+
+Novos testes: 36 frontend (37 com bootstrap), 26 backend CORS. Cobrem configuração
+inválida sem expor valores, origens/métodos/headers recusados, autenticação ainda
+obrigatória, exposição de Retry-After, erros HTTP sanitizados, 422 com metadados,
+rede versus cancelamento, resposta inválida, JSON/204, ausência de retries,
+proteção contra destinos externos e preservação de filtros false/zero.
+
+Comandos principais efetivamente executados, PowerShell:
+
+```powershell
+# Dentro de frontend:
+node --version
+npm.cmd --version
+npm.cmd audit --json --fetch-timeout=15000 --fetch-retries=0
+npm.cmd view vite@6 version --json --cache ../.tools/npm-cache --fetch-timeout=15000 --fetch-retries=0
+npm.cmd view vitest@4.1 version --json --cache ../.tools/npm-cache --fetch-timeout=15000 --fetch-retries=0
+npm.cmd view picomatch@4 version --json --cache ../.tools/npm-cache --fetch-timeout=15000 --fetch-retries=0
+npm.cmd install --save-dev --save-exact vite@6.4.6 vitest@4.1.12 --package-lock-only --ignore-scripts --cache ../.tools/npm-cache --fetch-timeout=15000 --fetch-retries=0
+npm.cmd ci --cache ../.tools/npm-cache --fetch-timeout=15000 --fetch-retries=0
+$env:VITE_API_BASE_URL='http://localhost:8000'
+$env:VITE_WS_URL='ws://localhost:8000/api/v1/ws/events'
+npm.cmd run typecheck
+npm.cmd test
+npm.cmd run build
+npm.cmd audit --json --cache ../.tools/npm-cache --fetch-timeout=15000 --fetch-retries=0
+npm.cmd audit --omit=dev --json --cache ../.tools/npm-cache --fetch-timeout=15000 --fetch-retries=0
+
+# Na raiz do repositório:
+docker compose run --rm -T --no-deps -v "./backend:/app:ro" backend python -m pytest -q -p no:cacheprovider --tb=short tests/test_cors.py tests/test_health.py tests/test_websocket.py
+docker compose build backend frontend
+docker compose run --rm -T --no-deps frontend npm test
+docker compose run --rm -T --no-deps backend python -m pytest -q -p no:cacheprovider --tb=short
+docker compose config --quiet
+docker compose up -d --no-deps --wait backend frontend
+docker compose exec -T backend python -m alembic current
+docker compose exec -T backend python -m alembic check
+docker compose ps
+docker compose exec -T backend python -c "import urllib.request; paths=('/health', '/ready', '/docs', '/openapi.json'); results=[(p, urllib.request.urlopen('http://127.0.0.1:8000'+p, timeout=10).status) for p in paths]; print(results); assert all(status == 200 for _, status in results)"
+git check-ignore .env
+git diff --check
+git diff
+git status --short
+```
+
+Resultados: Node nativo 24.22.0/npm 11.19.1; imagem Node 22.23.3. Typecheck e build
+Windows passaram; **37 testes frontend passaram no Windows e no Docker**. Build
+das duas imagens passou. Backend direcionado: **80 passaram em 10,99s**; regressão
+completa na imagem: **828 passaram em 195,76s, nenhum ignorado**. Apenas aviso
+Starlette/AnyIO preexistente. Backend/frontend recriados e healthy; PostgreSQL
+preservado e healthy. Alembic em `0005_alert_test_attempts (head)`, sem divergência.
+Os quatro endpoints consultados retornaram 200. Não foram executadas migrations
+novas, comandos de seed ou envios reais.
+
+Validação em navegador real: script local não versionado `.tools/phase8-browser-smoke.mjs`,
+executado com `node .tools/phase8-browser-smoke.mjs`, abriu Edge headless com perfil
+isolado e fechou-o ao terminar. Em localhost:5173 e 127.0.0.1:5173, importou o
+cliente TypeScript servido pelo Vite e executou consultas reais a health/ready
+(status ok), GET protegido com bearer fictício inválido (ApiError HTTP 401 após
+preflight) e header não permitido (bloqueado pelo navegador). Sem dados gravados,
+login real, tokens reais ou WebSocket aberto. Esta validação cobre a integração
+HTTP/CORS; não constitui revisão visual/acessibilidade de telas ainda inexistentes.
+
+Limitações e pendência: consulta inicial npm teve bloqueio de cache pelo sandbox;
+repetida com acesso autorizado e cache no workspace. Esbuild nativo também foi
+bloqueado pelo sandbox; testes/build passaram com acesso autorizado. O npm nativo
+informou script de instalação esbuild não aprovado em sua política; o binário
+instalado funcionou nos testes/build. Nenhuma alteração global de política npm.
+
+Auditoria final nativa completa: **6 entradas de severidade alta**, propagadas de
+picomatch; auditoria `--omit=dev`: **zero**. Durante build, npm 10 reportou 5 entradas
+transitivas. O aviso GHSA-fc5q-39xc-vjpf informa ausência de versão corrigida;
+Vite/mocker tiveram os avisos anteriores corrigidos. Não executado audit fix --force.
+O servidor Vite do Compose local usa dependências de desenvolvimento: o resultado
+zero sem dev não equivale a auditoria limpa desse servidor. A implementação
+funcional foi validada, mas a pendência de segurança transitiva permanece aberta.
+
+Diff revisado, somente avisos LF/CRLF, sem erros de whitespace; nenhum commit
+automático. Decisões documentadas: Fetch sem biblioteca adicional, URLs locais
+derivadas das configurações verificadas, CORS separado de WS e sem cookies.
+Etapa 2 permanece não iniciada; retomar a discussão de sessão antes de implementá-la.
