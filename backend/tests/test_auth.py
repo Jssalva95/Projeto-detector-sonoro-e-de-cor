@@ -238,6 +238,7 @@ def test_manual_seed_requires_config_and_never_overwrites(db, monkeypatch, capsy
 def test_production_openapi_only_approved_endpoints():
     schema = app.openapi()
     assert set(schema["paths"]) == {
+        "/api/v1/auth/browser/login", "/api/v1/auth/browser/session", "/api/v1/auth/browser/logout",
         "/health", "/ready", "/api/v1/auth/login", "/api/v1/auth/refresh", "/api/v1/auth/me",
         "/api/v1/machines", "/api/v1/machines/{id}", "/api/v1/devices",
         "/api/v1/devices/{id}", "/api/v1/devices/heartbeat",

@@ -1,5 +1,11 @@
 # Fase 8.1 — base de integração
 
+Registro histórico da etapa 1. A etapa 2 acrescenta login, cookies HttpOnly,
+CORS com credenciais e X-CSRF-Protection nas rotas de navegador. Para o estado
+atual, consultar [frontend-session.md](frontend-session.md) e
+[ADR 0013](decisions/0013-browser-session.md); as limitações abaixo descrevem a
+entrega original.
+
 Esta entrega prepara comunicação HTTP, configuração pública e CORS. A página de
 bootstrap permanece; não há login, persistência de tokens, renovação, roteamento,
 dashboard, abertura de WebSocket ou envio de alertas pelo frontend nesta etapa.
@@ -101,6 +107,10 @@ Referências: [CORS no FastAPI](https://fastapi.tiangolo.com/tutorial/cors/),
 
 ## Próxima entrega
 
-Antes de iniciar a etapa 2, retomar a definição da sessão: persistência após reload,
-ciclo de 30 minutos, confirmação com 60 segundos, limite do refresh e logout local
-versus revogação no servidor. Nenhuma dessas decisões foi implementada aqui.
+O contrato da etapa 2 foi definido: preservar durações de access/refresh, usar
+cookies HttpOnly para F5 e não apresentar aviso de presença aos 30 minutos.
+Ver [frontend-session.md](frontend-session.md).
+
+Atualização em 2026-11-19: o aviso GHSA-fc5q-39xc-vjpf foi retirado da base de
+segurança por não ser considerado vulnerabilidade; a auditoria completa passou
+a retornar zero, sem alteração adicional de versões para esse aviso.

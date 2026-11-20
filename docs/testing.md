@@ -1308,3 +1308,77 @@ Diff revisado, somente avisos LF/CRLF, sem erros de whitespace; nenhum commit
 automático. Decisões documentadas: Fetch sem biblioteca adicional, URLs locais
 derivadas das configurações verificadas, CORS separado de WS e sem cookies.
 Etapa 2 permanece não iniciada; retomar a discussão de sessão antes de implementá-la.
+
+## Fase 8.2 — continuidade do login — 2026-11-19
+
+Contrato atualizado em [frontend-session.md](frontend-session.md) e
+[ADR 0013](decisions/0013-browser-session.md): cookies HttpOnly, access/refresh
+com durações existentes, sem aviso de presença. Não foram alterados secrets,
+configuração de duração ou estrutura do banco.
+
+Correções da interrupção:
+
+- Os dois testes de lista exata do OpenAPI incluem as três rotas browser aprovadas.
+- A fixture de cookies isola e restaura o middleware CORS e overrides da aplicação;
+  não depende da origem configurada por testes executados anteriormente.
+- O decoder exige role string exatamente ADMIN, OPERATOR ou VIEWER. Arrays,
+  objetos, valores desconhecidos e IDs fora da precisão segura são rejeitados.
+- Autenticação, configuração de hostname e operação foram documentadas.
+
+Comandos executados na raiz, exceto npm (em frontend):
+
+```powershell
+docker compose run --rm -T --no-deps -v "./backend:/app:ro" backend python -m pytest -q -p no:cacheprovider --tb=short tests/test_auth.py tests/test_phase1.py tests/test_browser_auth.py tests/test_cors.py
+docker compose build backend frontend
+docker compose up -d --no-deps --wait backend frontend
+docker compose run --rm -T --no-deps backend python -m pytest -q -p no:cacheprovider --tb=short
+docker compose run --rm -T --no-deps -v "./backend:/app:ro" backend python -m pytest -q -p no:cacheprovider --tb=short tests/test_browser_auth.py
+npm.cmd test
+npm.cmd run typecheck
+npm.cmd audit --json --cache ../.tools/npm-cache --fetch-timeout=15000 --fetch-retries=0
+node frontend/tests/browser-session.mjs
+docker compose config --quiet
+docker compose ps
+docker compose exec -T backend python -m alembic current
+git diff --check
+git diff
+git status --short
+```
+
+Resultados:
+
+- Grupo inicial backend: 106 passaram.
+- Regressão completa na imagem: 855 passaram, zero falhas.
+- Após adicionar um teste de JWT access criptograficamente expirado, o módulo
+  browser foi executado novamente com os arquivos atuais: 28 passaram. A suíte
+  completa anterior tinha 27 casos nesse módulo; não afirmar que 856 casos foram
+  executados em uma única rodada. Nenhum código do backend mudou após a regressão.
+- Frontend final: 63 testes passaram; TypeScript aprovado. Não há script lint.
+- Build TypeScript/Vite aprovado no Docker. O frontend foi reconstruído e
+  reiniciado após ajustar o espaço da navegação em tela estreita.
+- Auditoria completa npm: zero vulnerabilidades reportadas. O aviso anterior de
+  picomatch foi retirado da base, sem atualização de versão adicional nesta tarefa.
+- Edge headless real, perfil isolado: login com conta existente, foco por teclado,
+  navegação sem recarregar documento, F5, perda/recuperação de rede, renovação de
+  access, refresh sem prazo prorrogado, restauração com access sem refresh, retorno
+  ao login sem cookies válidos, HttpOnly, rejeição de logout sem CSRF, logout em
+  duas abas e F5 após sair: aprovados.
+- Layout inspecionado visualmente em desktop 1280x800 e tela estreita 390x844;
+  sem overflow horizontal no cenário verificado. Não equivale a auditoria completa
+  de acessibilidade ou certificação de todos os navegadores.
+- O script de navegador inicialmente tinha uma corrida ao consultar o DOM antigo
+  durante reload. A espera foi corrigida para verificar um novo documento e o
+  roteiro completo foi repetido com sucesso.
+- `/health`, `/ready`, `/docs`, `/openapi.json`: HTTP 200. OpenAPI em execução contém
+  login/session/logout browser. Backend, frontend e PostgreSQL healthy.
+- Alembic permanece `0005_alert_test_attempts (head)`; nenhuma migration nova.
+- Diff sem erros de whitespace. Arquivos permanecem sem commit.
+
+Avisos não bloqueantes: depreciação BlockingPortal na integração Starlette/AnyIO;
+Rollup informa que ignorou diretivas `use client` do React Router no bundle SPA.
+Os perfis/capturas do navegador ficam em `.tools/`, fora do versionamento. O roteiro
+não cria dados de produção, não envia alertas e não modifica as durações JWT.
+
+Os testes de concorrência também verificam logout durante login/restauração,
+respostas tardias, única renovação concorrente, limite de um retry GET, ausência
+de retry automático de gravações e marcador de saída quando há falha de rede.

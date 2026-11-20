@@ -1,5 +1,11 @@
 # Fase 2 — autenticação
 
+Complemento da Fase 8.2: o transporte de navegador com cookies HttpOnly está em
+[frontend-session.md](frontend-session.md). As três rotas JSON/Bearer descritas
+abaixo permanecem compatíveis; login/restauração/logout de navegador usam rotas
+separadas, com CORS credenciado e proteção CSRF. Não houve mudança das durações,
+rotação ou revogação individual de JWTs.
+
 Contrato aprovado: login JSON, JWT access/refresh separados, refresh reutilizável
 até expirar, autorização pelo usuário ativo e role atual no PostgreSQL, seed manual.
 Nenhum endpoint de cadastro ou funcionalidade da Fase 3 foi adicionado.

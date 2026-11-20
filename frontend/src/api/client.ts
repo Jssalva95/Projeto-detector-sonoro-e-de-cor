@@ -7,6 +7,7 @@ export interface RequestOptions {
   body?: JsonValue;
   accessToken?: string;
   signal?: AbortSignal;
+  browserSession?: boolean;
 }
 export type Decoder<T> = (data: unknown) => T;
 type Fetch = typeof globalThis.fetch;
@@ -45,6 +46,7 @@ export function createApiClient(baseUrl: string, fetcher: Fetch = globalThis.fet
         headers.set("Content-Type", "application/json");
       }
       if (options.accessToken) headers.set("Authorization", `Bearer ${options.accessToken}`);
+      if (options.browserSession) headers.set("X-CSRF-Protection", "1");
     } catch {
       throw new ApiError("invalid_request", "Não foi possível preparar a requisição.");
     }
@@ -52,7 +54,7 @@ export function createApiClient(baseUrl: string, fetcher: Fetch = globalThis.fet
     try {
       response = await fetcher(url, {
         method: options.method ?? "GET", headers, body, signal: options.signal,
-        credentials: "omit", redirect: "error", cache: "no-store",
+        credentials: options.browserSession ? "include" : "omit", redirect: "error", cache: "no-store",
       });
     } catch {
       if (options.signal?.aborted) throw new ApiError("cancelled", "Operação cancelada.");

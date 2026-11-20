@@ -254,3 +254,10 @@ docker compose run --rm -T --no-deps -e EMAIL_ENABLED=false -e TELEGRAM_ENABLED=
 Não altera .env nem reserva mensagens. Smoke da API usa GET /health, /ready,
 /docs, /api/v1/alert-tests e /api/v1/settings com ADMIN. Não fazer POST de teste
 em banco real como validação silenciosa. Reconciliação em [alert-tests.md](alert-tests.md).
+
+# Sessão do navegador — Fase 8.2
+
+Após atualizar as imagens, acessar frontend e API com o mesmo protocolo e hostname.
+Na configuração local, usar `http://localhost:5173` com API `http://localhost:8000`.
+As regras de cookies, HTTPS e CSRF estão em [frontend-session.md](frontend-session.md).
+Não alterar os prazos JWT para fazer F5 funcionar.

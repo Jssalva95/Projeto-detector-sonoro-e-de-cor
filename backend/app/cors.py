@@ -31,8 +31,8 @@ def cors_origins() -> list[str]:
 class ConfiguredCORSMiddleware(CORSMiddleware):
     def __init__(self, app: ASGIApp) -> None:
         super().__init__(
-            app, allow_origins=cors_origins(), allow_credentials=False,
+            app, allow_origins=cors_origins(), allow_credentials=True,
             allow_methods=["GET", "POST", "PATCH", "DELETE"],
-            allow_headers=["Authorization", "Content-Type"],
+            allow_headers=["Authorization", "Content-Type", "X-CSRF-Protection"],
             expose_headers=["Retry-After"],
         )

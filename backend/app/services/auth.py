@@ -1,15 +1,18 @@
 """Authentication policies; no registration endpoint or future permissions."""
 
+from datetime import datetime, timezone
+
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models import User
 from app.models.enums import Role
 from app.repositories import users
-from app.schemas.auth import AccessTokenResponse, TokenResponse
+from app.schemas.auth import AccessTokenResponse, TokenResponse, BrowserSessionResponse
+from app.schemas.domain import UserRead
 from app.security import (
     AuthSettings, InvalidCredentials, TokenType, dummy_hash, hash_password,
-    issue_token, token_subject, verify_password,
+    issue_token, token_subject, token_identity, verify_password,
 )
 
 
@@ -43,6 +46,16 @@ def refresh(session: Session, token: str, settings: AuthSettings) -> AccessToken
         access_token=issue_token(user.id, "access", settings),
         expires_in=settings.access_minutes * 60,
     )
+
+
+def browser_session(session: Session, token: str, settings: AuthSettings) -> BrowserSessionResponse:
+    user = authenticated_user(session, token, "access", settings)
+    _, expiry = token_identity(token, "access", settings)
+    remaining = expiry - int(datetime.now(timezone.utc).timestamp())
+    if remaining <= 0:
+        raise InvalidCredentials()
+    return BrowserSessionResponse(access_token=token, expires_in=remaining,
+                                  user=UserRead.model_validate(user))
 
 
 def create_admin(session: Session, name: str, email: str, password: str) -> User:

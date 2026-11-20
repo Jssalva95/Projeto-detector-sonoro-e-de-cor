@@ -5,6 +5,7 @@ from typing import Literal
 from pydantic import Field, SecretStr, field_validator
 
 from app.schemas.domain import DataSchema
+from app.schemas.domain import UserRead
 
 
 class LoginRequest(DataSchema):
@@ -35,3 +36,7 @@ class AccessTokenResponse(DataSchema):
 
 class TokenResponse(AccessTokenResponse):
     refresh_token: str = Field(repr=False)
+
+
+class BrowserSessionResponse(AccessTokenResponse):
+    user: UserRead

@@ -31,7 +31,7 @@ def test_allowed_preflight_and_auth_still_required():
         })
         assert preflight.status_code == 200
         assert preflight.headers["access-control-allow-origin"] == ORIGIN
-        assert "access-control-allow-credentials" not in preflight.headers
+        assert preflight.headers["access-control-allow-credentials"] == "true"
         assert "Origin" in preflight.headers["vary"]
         denied = client.get("/api/v1/machines", headers={"Origin": ORIGIN})
         assert denied.status_code == 401
