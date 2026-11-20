@@ -1,31 +1,45 @@
 # Machine Tracker
 
-> **Fase 7 concluída — WebSocket e validação integrada (7.3).** Eventos críticos novos são
+Os blocos abaixo registram as entregas, da mais recente para a mais antiga.
+Os resultados de validação correspondem ao momento de cada entrega; consulte
+[docs/testing.md](docs/testing.md) para o histórico detalhado.
+
+> **Preparação da Fase 8 — etapa 5: testes de envio.** Fila independente com
+> UUID idempotente, cooldown, worker compartilhado e reconciliação sem reenvio:
+> [docs/alert-tests.md](docs/alert-tests.md).
+> Validação da etapa: 749 testes passaram; migration `0005` aplicada preservando
+> as sete tabelas anteriores. API e worker verificados sem envio externo.
+
+> **Preparação da Fase 8 — etapa 4: administração de alertas.** Administração
+> de destinatários, consultas de alertas e configurações exclusivas de ADMIN:
+> [docs/alert-administration.md](docs/alert-administration.md).
+> Validação da etapa: 668 testes passaram; consultas administrativas e `/settings`
+> responderam HTTP 200. Banco e tentativas preservados; sem envio externo.
+
+> **Preparação da Fase 8 — etapa 3: endpoints de dashboard.** Resumo operacional,
+> série temporal UTC e paginação de máquinas com evidências:
+> [docs/dashboard.md](docs/dashboard.md).
+> Validação da etapa: 554 testes passaram; os três GETs autenticados responderam
+> HTTP 200 no backend local, sem nova migration ou dependência.
+
+> **Preparação da Fase 8 — etapa 2: estado operacional.** Estado operacional
+> calculado e proteção de contexto dos dispositivos, conforme os
+> [contratos aprovados](docs/pre-frontend-contracts.md).
+> Validação da etapa: 493 testes passaram; migration `0004_device_status_context`
+> aplicada. Execução em [docs/deployment.md](docs/deployment.md).
+
+> **Preparação da Fase 8 — etapa 1: contratos aprovados.** Definições de estado
+> operacional, dashboard, administração de alertas e escopo de telas:
+> [docs/pre-frontend-contracts.md](docs/pre-frontend-contracts.md).
+> As cinco etapas de preparação não incluem implementação de novas telas.
+
+> **Fase 7 — WebSocket e validação integrada (7.3) concluídos.** Eventos críticos novos são
 > distribuídos para conexões autenticadas, com filas limitadas por cliente e
 > proteção contra retransmissão por UUID. Entrega transitória em processo único;
 > reconexão exige atualização por REST. Contratos e configuração:
 > [docs/websocket.md](docs/websocket.md). Não há frontend novo.
-> Validação atual: 475 testes passaram, incluindo recuperação por REST após
+> Validação da fase: 475 testes passaram, incluindo recuperação por REST após
 > reconexão e isolamento entre publicação WebSocket e fila de alertas.
-
-Preparação da Fase 8: os [contratos aprovados](docs/pre-frontend-contracts.md)
-detalham estado operacional, dashboard, administração de alertas e escopo de telas.
-A etapa 2 implementa o estado operacional calculado e a proteção de contexto dos
-dispositivos. A etapa 3 acrescenta os três [endpoints de dashboard](docs/dashboard.md),
-com resumo operacional, série temporal UTC e paginação de máquinas com evidências.
-Etapa 4: [administração de destinatários, consultas de alertas e configurações](docs/alert-administration.md)
-exclusivas de ADMIN. Etapa 5: [fila independente de testes de envio](docs/alert-tests.md),
-com UUID idempotente, cooldown, worker compartilhado e reconciliação sem reenvio.
-Não há frontend novo.
-Validação da etapa 2: 493 testes passaram; migration `0004_device_status_context`
-aplicada. Consulte [implantação](docs/deployment.md) e [testes](docs/testing.md).
-Validação da etapa 3: 554 testes passaram; os três GETs autenticados responderam
-HTTP 200 no backend local, sem nova migration ou dependência.
-Validação da etapa 4: 668 testes passaram; consultas administrativas e /settings
-responderam HTTP 200. Banco e tentativas preservados; sem envio externo.
-Validação da etapa 5: **749 testes passaram**, migration 0005 aplicada preservando
-as sete tabelas anteriores, API/worker verificados sem envio externo.
-Detalhes e limites em [docs/testing.md](docs/testing.md).
 
 > **Fase 6.3 — worker e tentativas manuais.** Processamento separado com reserva
 > durável e sem retry automático de resultados incertos. Ativação e limites em
